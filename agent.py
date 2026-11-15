@@ -7,7 +7,7 @@ import requests
 from dotenv import load_dotenv
 
 from tools import get_schema, run_sql, draw_chart
-from tool_models import RunSQLArguments
+from tool_models import TOOL_ARGUMENT_MODELS
 
 MODEL_NAME = "deepseek-flash"
 
@@ -22,67 +22,39 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "get_schema",
-            "description": "获取业务数据库三张表的真实建表SQL，包括字段、约束和关联关系。编写SQL前先调用。",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
-            },
+            "description": (
+                "获取业务数据库三张表的真实建表SQL，包括字段、约束和关联关系。"
+                "编写SQL前先调用。"
+            ),
+            "parameters": TOOL_ARGUMENT_MODELS["get_schema"].model_json_schema(),
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_sql",
+            "description": (
+                "执行以SELECT开头的单条SQLite只读查询，返回columns、rows、truncated。"
+                "仅访问orders、products、order_items；"
+                "可用函数：sum、count、avg、min、max、coalesce、round、nullif、date、strftime。"
+            ),
+            "parameters": TOOL_ARGUMENT_MODELS["run_sql"].model_json_schema(),
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "draw_chart",
+            "description": (
+                "执行SQL并根据结果生成柱状图，返回chart_path和row_count。"
+                "SQL必须恰好返回两列：第一列类别，第二列数值。"
+                "销售额绘图时第二列应换算为元。"
+                "先用run_sql核对数据，再用同一SQL和参数调用本工具。"
+            ),
+            "parameters": TOOL_ARGUMENT_MODELS["draw_chart"].model_json_schema(),
         },
     },
 ]
-
-TOOL_DEFINITIONS.append({
-    "type": "function",
-    "function": {
-        "name": "run_sql",
-        "description": (
-            "执行以SELECT开头的单条SQLite只读查询，返回columns、rows、truncated。"
-            "仅访问orders、products、order_items；"
-            "可用函数：sum、count、avg、min、max、coalesce、round、nullif、date、strftime。"
-        ),
-        "parameters": RunSQLArguments.model_json_schema(),
-    },
-})
-
-TOOL_DEFINITIONS.append({
-    "type": "function",
-    "function": {
-        "name": "draw_chart",
-        "description": (
-            "执行SQL并根据查询结果生成柱状图，返回chart_path和row_count。"
-            "SQL必须恰好返回两列：第一列是类别名称，第二列是数值。"
-            "销售额绘图时，第二列应已换算为元。"
-            "先用run_sql核对数据，再将同一SQL和参数交给本工具。"
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "sql": {
-                    "type": "string",
-                    "description": "以SELECT开头的两列查询，第一列类别，第二列数值。",
-                },
-                "params": {
-                    "type": "array",
-                    "description": "按?占位符顺序填写参数，无参数时填[]。",
-                    "items": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "number"},
-                        ],
-                    },
-                },
-                "title": {
-                    "type": "string",
-                    "description": "中文图表标题，标明统计范围和金额单位。",
-                },
-            },
-            "required": ["sql", "params", "title"],
-            "additionalProperties": False,
-        },
-    },
-})
 
 def request_model(messages):
     env_path = Path(__file__).resolve().parent / ".env"
@@ -114,9 +86,9 @@ def execute_tool(tool_name, arguments):
     if not isinstance(arguments, dict):
         raise ValueError("工具参数必须是字典")
 
-    if tool_name == "run_sql":
-        validated = RunSQLArguments.model_validate(arguments)
-        arguments = validated.model_dump()
+    argument_model = TOOL_ARGUMENT_MODELS[tool_name]
+    validated = argument_model.model_validate(arguments)
+    arguments = validated.model_dump()
 
     tool_function = TOOL_FUNCTIONS[tool_name]
     return tool_function(**arguments)

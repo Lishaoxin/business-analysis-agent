@@ -9,6 +9,19 @@ class RunSQLArguments(BaseModel):
         description="按占位符顺序填写参数，无参数时传空列表"
     )
 
+class GetSchemaArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class DrawChartArguments(RunSQLArguments):
+    title: str = Field(min_length=1, description="中文图表标题，标明统计范围和单位")
+
+
+TOOL_ARGUMENT_MODELS = {
+    "get_schema": GetSchemaArguments,
+    "run_sql": RunSQLArguments,
+    "draw_chart": DrawChartArguments,
+}
 
 if __name__ == "__main__":
     examples = [
