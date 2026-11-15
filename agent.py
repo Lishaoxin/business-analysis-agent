@@ -7,6 +7,7 @@ import requests
 from dotenv import load_dotenv
 
 from tools import get_schema, run_sql, draw_chart
+from tool_models import RunSQLArguments
 
 MODEL_NAME = "deepseek-flash"
 
@@ -41,27 +42,7 @@ TOOL_DEFINITIONS.append({
             "仅访问orders、products、order_items；"
             "可用函数：sum、count、avg、min、max、coalesce、round、nullif、date、strftime。"
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "sql": {
-                    "type": "string",
-                    "description": "查询SQL，条件值使用?占位符。",
-                },
-                "params": {
-                    "type": "array",
-                    "description": "按?占位符顺序填写字符串或数字，无参数时填[]。",
-                    "items": {
-                        "anyOf": [
-                            {"type": "string"},
-                            {"type": "number"},
-                        ],
-                    },
-                },
-            },
-            "required": ["sql", "params"],
-            "additionalProperties": False,
-        },
+        "parameters": RunSQLArguments.model_json_schema(),
     },
 })
 
@@ -132,6 +113,10 @@ def execute_tool(tool_name, arguments):
         raise ValueError(f"未知工具：{tool_name}")
     if not isinstance(arguments, dict):
         raise ValueError("工具参数必须是字典")
+
+    if tool_name == "run_sql":
+        validated = RunSQLArguments.model_validate(arguments)
+        arguments = validated.model_dump()
 
     tool_function = TOOL_FUNCTIONS[tool_name]
     return tool_function(**arguments)
