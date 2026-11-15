@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>业务数据分析 Agent</title>
+    <style>
+        body { max-width: 800px; margin: 40px auto; padding: 0 20px; font-family: sans-serif; }
+        textarea { display: block; box-sizing: border-box; width: 100%; margin: 12px 0; font: inherit; }
+        button { padding: 8px 18px; }
+        pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; }
+    </style>
+</head>
+<body>
+    <h1>业务数据分析 Agent</h1>
+    <form id="analysis-form">
+        <label for="question">请输入分析问题</label>
+        <textarea id="question" rows="4" required
+            placeholder="例如：已支付订单有多少笔？"></textarea>
+        <button id="submit-button" type="submit">开始分析</button>
+    </form>
+    <p id="status" role="status"></p>
+    <h2>分析回答</h2>
+    <pre id="answer"></pre>
+
+    <h2>工具调用记录</h2>
+    <div id="steps"></div>
+
+    <h2>图表</h2>
+    <div id="charts"></div>
+
+    <script>
+        const form = document.getElementById("analysis-form");
+        const questionInput = document.getElementById("question");
+        const button = document.getElementById("submit-button");
+        const statusText = document.getElementById("status");
+        const answer = document.getElementById("answer");
+        const steps = document.getElementById("steps");
+        const charts = document.getElementById("charts");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const question = questionInput.value.trim();
+            if (!question) {
+                statusText.textContent = "请输入分析问题";
+                return;
+            }
+
+            button.disabled = true;
+            statusText.textContent = "正在分析，请稍候……";
+            answer.textContent = "";
+            steps.replaceChildren();
+            charts.replaceChildren();
+
+            try {
+                const response = await fetch("/analyze", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    const detail = typeof data.detail === "string"
+                        ? data.detail : "请求失败，请检查输入或稍后重试";
+                    throw new Error(detail);
+                }
+
+                answer.textContent = data.answer;
+
+                if (data.steps.length === 0) {
+                    steps.textContent = "本次分析未调用工具";
+                }
+                for (const step of data.steps) {
+                    const item = document.createElement("details");
+                    const summary = document.createElement("summary");
+                    const toolStatus = step.result.ok ? "成功" : "失败";
+                    summary.textContent =
+                        "第 " + step.round + " 轮：" + step.tool_name + "（" + toolStatus + "）";
+
+                    const content = document.createElement("pre");
+                    content.textContent = JSON.stringify(step, null, 2);
+
+                    item.appendChild(summary);
+                    item.appendChild(content);
+                    steps.appendChild(item);
+                }
+
+                if (data.charts.length === 0) {
+                    charts.textContent = "本次分析未生成图表";
+                }
+                for (const chartUrl of data.charts) {
+                    const image = document.createElement("img");
+                    image.src = chartUrl;
+                    image.alt = "本次分析生成的图表";
+                    image.style.maxWidth = "100%";
+                    charts.appendChild(image);
+                }
+
+                statusText.textContent = "分析完成";
+            } catch (error) {
+                statusText.textContent = "分析失败：" + error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

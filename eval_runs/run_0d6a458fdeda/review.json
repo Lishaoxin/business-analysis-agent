@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "source_report_sha256": "c74dd04d841d5d3c5da02d6b3885c28d6fad7f96eb25b6370d883bf47b6ec63c",
+  "method": "SQL结果复查、答案核对和图片检查",
+  "reviews": [
+    {"id": "E01", "passed": true, "notes": "按状态分组查询得到paid=4，最终回答4笔。"},
+    {"id": "E02", "passed": true, "notes": "仅统计paid，数量乘单价后汇总并换算为元，结果3100元。"},
+    {"id": "E03", "passed": true, "notes": "取消订单O002与O006的明细金额分别300和1300元，合计1600元。"},
+    {"id": "E04", "passed": true, "notes": "日期范围为2026-09-01至2026-11-01之前，按月份升序得到1400和1700元。"},
+    {"id": "E05", "passed": true, "notes": "以9月1400元为基期，10月1700元，增长21.43%；WITH查询被拒绝后改写SELECT成功。"},
+    {"id": "E06", "passed": true, "notes": "地区降序为华东2450元、华南650元；额外地区图的数据也正确。"},
+    {"id": "E07", "passed": true, "notes": "商品降序为显示器1300元、鼠标1200元、键盘600元。"},
+    {"id": "E08", "passed": true, "notes": "使用去重订单数4作为分母，3100除以4得到775元。"},
+    {"id": "E09", "passed": true, "notes": "2026年11月订单数为0，COALESCE将空金额处理为0。"},
+    {"id": "E10", "passed": true, "notes": "类别降序为电脑配件1800元、显示设备1300元；PNG已生成并查看，数值、顺序和单位正确。"}
+  ]
+}

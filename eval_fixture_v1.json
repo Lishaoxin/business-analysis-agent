@@ -1,0 +1,155 @@
+{
+  "dataset_sha256": "cae47c287d46c620c96eeefb7f1fadb8bcab574a238007202587a611d19b7cfc",
+  "dataset": {
+    "version": 1,
+    "tables": {
+      "orders": {
+        "schema": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+        "columns": [
+          "order_id",
+          "order_date",
+          "region",
+          "status"
+        ],
+        "rows": [
+          [
+            "O001",
+            "2026-09-01",
+            "华东",
+            "paid"
+          ],
+          [
+            "O002",
+            "2026-09-02",
+            "华南",
+            "cancelled"
+          ],
+          [
+            "O003",
+            "2026-09-05",
+            "华南",
+            "paid"
+          ],
+          [
+            "O004",
+            "2026-10-01",
+            "华东",
+            "paid"
+          ],
+          [
+            "O005",
+            "2026-10-03",
+            "华南",
+            "paid"
+          ],
+          [
+            "O006",
+            "2026-10-08",
+            "华东",
+            "cancelled"
+          ]
+        ]
+      },
+      "products": {
+        "schema": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)",
+        "columns": [
+          "product_id",
+          "product_name",
+          "category"
+        ],
+        "rows": [
+          [
+            "P001",
+            "键盘",
+            "电脑配件"
+          ],
+          [
+            "P002",
+            "鼠标",
+            "电脑配件"
+          ],
+          [
+            "P003",
+            "显示器",
+            "显示设备"
+          ]
+        ]
+      },
+      "order_items": {
+        "schema": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+        "columns": [
+          "item_id",
+          "order_id",
+          "product_id",
+          "quantity",
+          "unit_price_cents"
+        ],
+        "rows": [
+          [
+            1,
+            "O001",
+            "P001",
+            3,
+            10000
+          ],
+          [
+            2,
+            "O001",
+            "P002",
+            5,
+            15000
+          ],
+          [
+            3,
+            "O002",
+            "P001",
+            3,
+            10000
+          ],
+          [
+            4,
+            "O003",
+            "P001",
+            2,
+            10000
+          ],
+          [
+            5,
+            "O003",
+            "P002",
+            1,
+            15000
+          ],
+          [
+            6,
+            "O004",
+            "P003",
+            1,
+            130000
+          ],
+          [
+            7,
+            "O004",
+            "P001",
+            1,
+            10000
+          ],
+          [
+            8,
+            "O005",
+            "P002",
+            2,
+            15000
+          ],
+          [
+            9,
+            "O006",
+            "P003",
+            1,
+            130000
+          ]
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,131 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我会先确认表结构，然后计算月度对比。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_qAD7I8vkP0fWs2UjA6zy4827",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_JE8wwDCLBzfPsOd1gGoe1927",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT strftime('%Y-%m', o.order_date) AS ym, SUM(oi.quantity * oi.unit_price_cents) AS sales_cents, COUNT(DISTINCT o.order_id) AS orders FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ? GROUP BY ym ORDER BY ym\", \"params\": [\"2026-09-01\", \"2026-11-01\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "ym",
+      "sales_cents",
+      "orders"
+    ],
+    "rows": [
+      [
+        "2026-09",
+        140000,
+        2
+      ],
+      [
+        "2026-10",
+        170000,
+        2
+      ]
+    ],
+    "truncated": false
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_ALR7YsYyFCWAYs68X9hg3106",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"2026-09-01\", \"2026-11-01\"], \"sql\": \"WITH m AS (SELECT strftime('%Y-%m', o.order_date) AS ym, SUM(oi.quantity * oi.unit_price_cents) AS sales_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ? GROUP BY ym) SELECT (SELECT sales_cents FROM m WHERE ym='2026-09') AS sep_cents, (SELECT sales_cents FROM m WHERE ym='2026-10') AS oct_cents, ROUND(((SELECT sales_cents FROM m WHERE ym='2026-10') - (SELECT sales_cents FROM m WHERE ym='2026-09')) * 100.0 / (SELECT sales_cents FROM m WHERE ym='2026-09'), 2) AS growth_pct\"}"
+      }
+    }
+  ]
+}
+工具调用失败： run_sql
+工具反馈：
+{
+  "ok": false,
+  "error_type": "ValueError",
+  "error": "当前工具接受以 SELECT 开头的单条查询"
+}
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_D1OzRQluHnpIYuBkUcZz3788",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"2026-09-01\", \"2026-11-01\"], \"sql\": \"SELECT ROUND((SUM(CASE WHEN strftime('%Y-%m', o.order_date)='2026-10' THEN oi.quantity*oi.unit_price_cents ELSE 0 END) - SUM(CASE WHEN strftime('%Y-%m', o.order_date)='2026-09' THEN oi.quantity*oi.unit_price_cents ELSE 0 END)) * 100.0 / NULLIF(SUM(CASE WHEN strftime('%Y-%m', o.order_date)='2026-09' THEN oi.quantity*oi.unit_price_cents ELSE 0 END), 0), 2) AS growth_pct, SUM(CASE WHEN strftime('%Y-%m', o.order_date)='2026-09' THEN oi.quantity*oi.unit_price_cents ELSE 0 END)/100.0 AS sep_yuan, SUM(CASE WHEN strftime('%Y-%m', o.order_date)='2026-10' THEN oi.quantity*oi.unit_price_cents ELSE 0 END)/100.0 AS oct_yuan FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "growth_pct",
+      "sep_yuan",
+      "oct_yuan"
+    ],
+    "rows": [
+      [
+        21.43,
+        1400.0,
+        1700.0
+      ]
+    ],
+    "truncated": false
+  }
+}
+第 5 轮模型返回：
+{
+  "role": "assistant",
+  "content": "**2026年10月已支付销售额环比9月增长 21.43%**\n\n| 月份 | 已支付销售额 | 已支付订单数 |\n|---|---|---|\n| 2026-09（基期） | 1,400.00 元 | 2 |\n| 2026-10 | 1,700.00 元 | 2 |\n\n- 计算方式：(1700.00 − 1400.00) ÷ 1400.00 × 100% = **21.43%**\n- 统计规则：只纳入 `status='paid'` 的订单；销售额按 `quantity × unit_price_cents` 汇总，金额由分换算为元；2026-10 的统计范围为 2026-10-01 至 2026-10-31。\n- 说明：两个月的已支付订单数均为 2 笔，样本量较小。该增长率反映的是这两笔订单的合计金额变化，不宜直接外推为整体趋势。单价是否含税或包含优惠，无法从数据中判断。"
+}

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "dataset_sha256": "cae47c287d46c620c96eeefb7f1fadb8bcab574a238007202587a611d19b7cfc",
+  "cases": [
+    {
+      "id": "E01",
+      "question": "已支付订单共有多少笔？",
+      "expected": {"order_count": 4}
+    },
+    {
+      "id": "E02",
+      "question": "已支付订单的总销售额是多少元？",
+      "expected": {"sales_yuan": 3100}
+    },
+    {
+      "id": "E03",
+      "question": "所有已取消订单的明细金额合计是多少元？",
+      "expected": {"cancelled_amount_yuan": 1600}
+    },
+    {
+      "id": "E04",
+      "question": "分别统计2026年9月和10月的已支付销售额（元），按月份升序排列。",
+      "expected": {"rows": [["2026-09", 1400], ["2026-10", 1700]]}
+    },
+    {
+      "id": "E05",
+      "question": "2026年10月的已支付销售额相比9月增长了百分之多少？以9月为基期，百分数保留两位小数。",
+      "expected": {"growth_percent": 21.43}
+    },
+    {
+      "id": "E06",
+      "question": "按地区统计已支付订单的销售额（元），按销售额从高到低排列。",
+      "expected": {"rows": [["华东", 2450], ["华南", 650]]}
+    },
+    {
+      "id": "E07",
+      "question": "按商品统计已支付订单的销售额（元），按销售额从高到低排列。",
+      "expected": {"rows": [["显示器", 1300], ["鼠标", 1200], ["键盘", 600]]}
+    },
+    {
+      "id": "E08",
+      "question": "已支付订单平均每笔销售额是多少元？按订单数计算，保留两位小数。",
+      "expected": {"average_order_yuan": 775}
+    },
+    {
+      "id": "E09",
+      "question": "2026年11月有多少笔已支付订单，销售额合计多少元？没有订单时，两个数值都按0回答。",
+      "expected": {"order_count": 0, "sales_yuan": 0}
+    },
+    {
+      "id": "E10",
+      "question": "按商品类别统计已支付订单的销售额（元），按销售额降序排列，并绘制一张柱状图。",
+      "expected": {"rows": [["电脑配件", 1800], ["显示设备", 1300]]},
+      "requires_chart": true
+    }
+  ]
+}
