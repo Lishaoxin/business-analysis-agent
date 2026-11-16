@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from tools import get_schema, run_sql, draw_chart
 from tool_models import TOOL_ARGUMENT_MODELS
 from query_store import QueryStore
+from completion_checks import validate_conclusion
 
 MODEL_NAME = "deepseek-flash"
 
@@ -126,7 +127,7 @@ def call_tool(tool_name, raw_arguments, query_store=None):
             "error": str(exc),
         }
 
-def run_agent(question, max_rounds=6):
+def run_agent(question, max_rounds=6, requires_query=True):
     if not isinstance(question, str) or not question.strip():
         raise ValueError("问题必须是非空字符串")
 
@@ -147,6 +148,13 @@ def run_agent(question, max_rounds=6):
                 "工具反馈ok=true时，data是有效结果；ok=false表示执行失败，error说明原因。"
                 "可修复的错误应修正SQL或参数后重试；权限受限或无法修复时如实说明。"
                 "仅依据成功的工具结果回答，结果足够时直接给出答案。"
+                "结束时必须在content中返回一个JSON对象，不使用Markdown代码块或额外文字。"
+                "对象只能包含status、answer、evidence_query_ids三个字段。"
+                "status只能是completed、needs_clarification、failed；answer保存中文回答或说明。"
+                "evidence_query_ids是支持回答的查询编号列表，只能引用当前任务成功返回的编号。"
+                f"本任务requires_query={requires_query}。"
+                "requires_query=True时，completed必须引用至少一个未截断的成功查询结果。"
+                "需要用户补充条件时使用needs_clarification；无法完成时使用failed；这两种状态允许空编号列表。"
             ),
         },
         {
@@ -162,8 +170,31 @@ def run_agent(question, max_rounds=6):
 
         tool_calls = message.get("tool_calls") or []
         if not tool_calls:
+            content = message.get("content") or ""
+            try:
+                data = json.loads(content)
+                conclusion = validate_conclusion(
+                    data, query_store, requires_query=requires_query
+                )
+            except (ValueError, TypeError) as exc:
+                print("结束信息校验失败：", exc)
+                messages.append({
+                    "role": "assistant",
+                    "content": content,
+                })
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        f"结束信息未通过程序校验：{exc}。"
+                        "请继续处理原问题，必要时调用工具，再返回符合约定的JSON。"
+                        "查询失败不能当作0或无记录；需要用户补充条件时使用"
+                        "needs_clarification，无法完成时使用failed。"
+                    ),
+                })
+                continue
+
             return {
-                "answer": message.get("content") or "",
+                **conclusion,
                 "steps": steps,
                 "charts": charts,
             }
@@ -213,13 +244,21 @@ def run_agent(question, max_rounds=6):
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-    raise RuntimeError(f"已达到{max_rounds}轮请求上限，本次任务尚未生成最终回答。")
+    return {
+        "status": "failed",
+        "answer": f"已达到{max_rounds}轮请求上限，未能生成通过校验的结束信息。",
+        "evidence_query_ids": [],
+        "steps": steps,
+        "charts": charts,
+    }
 
 
 if __name__ == "__main__":
     question = input("请输入分析问题：")
     try:
         run_result = run_agent(question)
+        print("任务状态：", run_result["status"])
+        print("引用的查询编号：", run_result["evidence_query_ids"])
         print("最终回答：", run_result["answer"])
         print("工具调用次数：", len(run_result["steps"]))
         print("图表路径：", run_result["charts"])

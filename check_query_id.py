@@ -60,7 +60,20 @@ def create_store():
 
 def fake_request_model(messages):
     if any(message.get("role") == "tool" for message in messages):
-        return {"role": "assistant", "content": "测试完成"}
+        query_ids = []
+        for message in messages:
+            if message.get("role") == "tool":
+                feedback = json.loads(message["content"])
+                if feedback["ok"] and "query_id" in feedback["data"]:
+                    query_ids.append(feedback["data"]["query_id"])
+        return {
+            "role": "assistant",
+            "content": json.dumps({
+                "status": "completed",
+                "answer": "测试完成",
+                "evidence_query_ids": query_ids,
+            }, ensure_ascii=False),
+        }
 
     tool_calls = []
     for index, value in enumerate(["first", "second"]):
@@ -89,7 +102,11 @@ assert created_stores[0] is not created_stores[1]
 
 first_ids = []
 for run, task_store in zip([first_run, second_run], created_stores):
+    assert run["status"] == "completed", run
     assert len(run["steps"]) == 2
+    assert run["evidence_query_ids"] == [
+        step["result"]["data"]["query_id"] for step in run["steps"]
+    ]
     for step, value in zip(run["steps"], ["first", "second"]):
         assert step["result"]["ok"] is True, step
         task_query_id = step["result"]["data"]["query_id"]

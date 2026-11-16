@@ -8,7 +8,8 @@
 
 - 第一版基线：`dbf2804`。下方归档的十题评测结果与耗时对应这一版本。
 - 第二版开发中：已加入 Pydantic 统一工具参数校验和任务内查询结果存储。模型向绘图工具传入 query_id，执行层取回对应数据，绘图函数直接使用该结果。
-- 新增能力已通过离线检查和真实模型的类别销售额绘图验收；第二版完整业务题集评测将在后续进行。
+- 已加入任务结束状态与证据检查：区分 completed、needs_clarification、failed；对需要查询的完成结果，检查引用编号是否存在、结果是否被截断。
+- 新增能力已通过离线检查，以及真实模型的类别销售额绘图和已支付订单计数验收；第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
 
@@ -22,7 +23,9 @@ flowchart TD
     P --> T["get_schema / run_sql / draw_chart"]
     T --> F["成功结果或错误反馈"]
     F --> M
-    M -->|任务完成| R["answer / steps / charts"]
+    M -->|提交结束JSON| E["结束信息与查询引用检查"]
+    E -->|通过| R["status / answer / evidence_query_ids / steps / charts"]
+    E -->|失败，反馈修正| M
     R --> V["网页展示或 CLI 输出"]
 ```
 
@@ -133,7 +136,8 @@ DEEPSEEK_API_KEY=your_api_key_here
 {"question": "已支付订单共有多少笔？"}
 ```
 
-返回 `answer`（回答）、`steps`（工具调用及反馈）、`charts`（图表）。
+返回 `status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`steps`（工具调用及反馈）、`charts`（图表）。
+`completed` 表示结束信息与引用检查通过，业务答案仍需核验。
 HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘路径。
 图片由 `GET /outputs/文件名.png` 读取已有文件。
 
@@ -162,7 +166,7 @@ HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘�
 
 1. 对照每题的 `expected`，核对成功 SQL 结果、最终回答、统计口径和要求的图片。
 2. 在该批次目录创建 `review.json`，格式可参考[已归档审核记录](eval_runs/run_0d6a458fdeda/review.json)。
-3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`；`completed` 仅表示返回了最终回答。
+3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`；`execution_status=completed` 表示调用正常返回，`result.status` 是 Agent 的任务状态，是否答对仍需核验。
 4. `source_report_sha256` 应填写本次原始报告的内容指纹，不能直接沿用其他批次的指纹。
 
 将下方变量替换成终端打印的本次真实报告路径，再计算指纹：
