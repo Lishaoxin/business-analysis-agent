@@ -13,7 +13,10 @@ class GetSchemaArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
-class DrawChartArguments(RunSQLArguments):
+class DrawChartArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    query_id: str = Field(min_length=1, description="本次任务中 run_sql 返回的查询结果编号")
     title: str = Field(min_length=1, description="中文图表标题，标明统计范围和单位")
 
 

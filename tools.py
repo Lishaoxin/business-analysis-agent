@@ -96,8 +96,7 @@ def run_sql(sql, params=()):
     finally:
         conn.close()
 
-def draw_chart(sql, params=(), title="查询结果"):
-    result = run_sql(sql, params)
+def draw_chart(result, title="查询结果"):
 
     if result["truncated"]:
         raise ValueError("查询结果超过100行，请先缩小查询范围")
@@ -156,8 +155,7 @@ if __name__ == "__main__":
     print("绘图数据：", result["rows"])
     print("是否截断：", result["truncated"])
     chart_result = draw_chart(
-        sql,
-        ("paid",),
+        result,
         title="已支付订单各商品销售额",
     )
     print("绘图结果：", chart_result)

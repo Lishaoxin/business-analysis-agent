@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from tools import get_schema, run_sql, draw_chart
 from tool_models import TOOL_ARGUMENT_MODELS
+from query_store import QueryStore
 
 MODEL_NAME = "deepseek-flash"
 
@@ -34,7 +35,8 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "run_sql",
             "description": (
-                "执行以SELECT开头的单条SQLite只读查询，返回columns、rows、truncated。"
+                "执行以SELECT开头的单条SQLite只读查询，返回query_id、columns、rows、truncated。"
+                "query_id是当前任务中本次查询结果的编号。"
                 "仅访问orders、products、order_items；"
                 "可用函数：sum、count、avg、min、max、coalesce、round、nullif、date、strftime。"
             ),
@@ -46,10 +48,10 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "draw_chart",
             "description": (
-                "执行SQL并根据结果生成柱状图，返回chart_path和row_count。"
-                "SQL必须恰好返回两列：第一列类别，第二列数值。"
-                "销售额绘图时第二列应换算为元。"
-                "先用run_sql核对数据，再用同一SQL和参数调用本工具。"
+                "根据当前任务中已保存的查询结果生成柱状图，返回chart_path、row_count和query_id。"
+                "先调用run_sql取得query_id，再将该编号和title传入本工具。"
+                "引用结果必须恰好两列：第一列类别，第二列数值。"
+                "销售额绘图时第二列应已换算为元。"
             ),
             "parameters": TOOL_ARGUMENT_MODELS["draw_chart"].model_json_schema(),
         },
@@ -80,7 +82,7 @@ def request_model(messages):
     response.raise_for_status()
     return response.json()["choices"][0]["message"]
 
-def execute_tool(tool_name, arguments):
+def execute_tool(tool_name, arguments, query_store=None):
     if tool_name not in TOOL_FUNCTIONS:
         raise ValueError(f"未知工具：{tool_name}")
     if not isinstance(arguments, dict):
@@ -89,14 +91,30 @@ def execute_tool(tool_name, arguments):
     argument_model = TOOL_ARGUMENT_MODELS[tool_name]
     validated = argument_model.model_validate(arguments)
     arguments = validated.model_dump()
-
     tool_function = TOOL_FUNCTIONS[tool_name]
-    return tool_function(**arguments)
 
-def call_tool(tool_name, raw_arguments):
+    if tool_name == "draw_chart":
+        if query_store is None:
+            raise ValueError("绘图需要当前任务的查询存储，请先执行查询")
+
+        query_id = arguments["query_id"]
+        saved_result = query_store.get(query_id)
+        data = tool_function(saved_result, title=arguments["title"])
+        return {**data, "query_id": query_id}
+
+    data = tool_function(**arguments)
+
+    if tool_name == "run_sql" and query_store is not None:
+        query_id = query_store.save(data)
+        data = {**data, "query_id": query_id}
+
+    return data
+
+
+def call_tool(tool_name, raw_arguments, query_store=None):
     try:
         arguments = json.loads(raw_arguments)
-        data = execute_tool(tool_name, arguments)
+        data = execute_tool(tool_name, arguments, query_store=query_store)
         return {
             "ok": True,
             "data": data,
@@ -112,6 +130,7 @@ def run_agent(question, max_rounds=6):
     if not isinstance(question, str) or not question.strip():
         raise ValueError("问题必须是非空字符串")
 
+    query_store = QueryStore()
     steps = []
     charts = []
 
@@ -122,7 +141,8 @@ def run_agent(question, max_rounds=6):
                 "你是业务数据分析助手，请用中文回答。"
                 "编写或修正SQL前，先通过get_schema确认真实表结构。"
                 "统计数值必须来自run_sql；金额以分存储，展示时转为元。"
-                "需要绘图时，先用run_sql核对数据，再用同一SQL和参数调用draw_chart。"
+                "需要绘图时，先用run_sql取得合适的数据，再把其成功反馈中的query_id交给draw_chart。"
+                "query_id只在当前任务内有效，不得编造；绘图工具不接收SQL或原始数据。"
                 "图片路径使用工具返回值，不推断单价是否含税或优惠。"
                 "工具反馈ok=true时，data是有效结果；ok=false表示执行失败，error说明原因。"
                 "可修复的错误应修正SQL或参数后重试；权限受限或无法修复时如实说明。"
@@ -165,7 +185,9 @@ def run_agent(question, max_rounds=6):
         for tool_call in tool_calls:
             tool_name = tool_call["function"]["name"]
             raw_arguments = tool_call["function"]["arguments"]
-            result = call_tool(tool_name, raw_arguments)
+            result = call_tool(
+                tool_name, raw_arguments, query_store=query_store
+            )
             steps.append({
                 "round": round_index + 1,
                 "tool_call_id": tool_call["id"],

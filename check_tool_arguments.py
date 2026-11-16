@@ -3,6 +3,7 @@ from pathlib import Path
 
 from agent import TOOL_DEFINITIONS, TOOL_FUNCTIONS, call_tool
 from tool_models import TOOL_ARGUMENT_MODELS
+from query_store import QueryStore
 
 
 # 三份注册信息必须对应，模型看到的说明也必须与后端校验一致。
@@ -17,6 +18,15 @@ for item in TOOL_DEFINITIONS:
     ), name
 
 print("3 个工具的说明与参数模型一致")
+
+store = QueryStore()
+chart_query = call_tool(
+    "run_sql",
+    json.dumps({"sql": "SELECT '测试分类' AS category, 100.0 AS sales_yuan", "params": []}),
+    query_store=store,
+)
+assert chart_query["ok"] is True, chart_query
+chart_id = chart_query["data"]["query_id"]
 
 cases = [
     ("读取表结构", "get_schema", {}, None),
@@ -54,36 +64,32 @@ cases = [
     (
         "正确绘图参数",
         "draw_chart",
-        {
-            "sql": "SELECT '测试分类' AS category, 100.0 AS sales_yuan",
-            "params": [],
-            "title": "参数校验测试（元）",
-        },
+        {"query_id": chart_id, "title": "参数校验测试（元）"},
         None,
     ),
     (
         "绘图标题类型错误",
         "draw_chart",
-        {"sql": "SELECT '测试' AS category, 100 AS value", "params": [], "title": 123},
+        {"query_id": chart_id, "title": 123},
         "ValidationError",
     ),
     (
         "绘图缺少标题",
         "draw_chart",
-        {"sql": "SELECT '测试' AS category, 100 AS value", "params": []},
+        {"query_id": chart_id},
         "ValidationError",
     ),
     (
-        "绘图参数列表类型错误",
+        "绘图编号类型错误",
         "draw_chart",
-        {"sql": "SELECT '测试' AS category, 100 AS value", "params": "paid", "title": "测试"},
+        {"query_id": 123, "title": "测试"},
         "ValidationError",
     ),
 ]
 
 for label, tool_name, arguments, expected_error in cases:
     feedback = call_tool(
-        tool_name, json.dumps(arguments, ensure_ascii=False)
+        tool_name, json.dumps(arguments, ensure_ascii=False), query_store=store
     )
     print(
         label,
@@ -103,6 +109,7 @@ for label, tool_name, arguments, expected_error in cases:
     elif tool_name == "run_sql":
         assert data["rows"] == [["paid"]], label
     elif tool_name == "draw_chart":
+        assert data["query_id"] == chart_id, label
         assert data["row_count"] == 1, label
         chart_path = Path(data["chart_path"])
         assert chart_path.is_file(), label
