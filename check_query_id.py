@@ -48,24 +48,21 @@ assert legacy["ok"] is True and legacy["data"]["rows"] == [["paid"]]
 assert "query_id" not in legacy["data"]
 print("旧的独立工具调用保持兼容")
 
-# 用预设回复替换 request_model，实际执行 run_agent 的上下文传递。
-created_stores = []
-
-
-def create_store():
-    instance = QueryStore()
-    created_stores.append(instance)
-    return instance
+# 实际运行图：两轮工具节点分别查询，缓存通过State衔接；不请求模型。
+import graph_agent
+from agent_state import create_initial_state
 
 
 def fake_request_model(messages):
-    if any(message.get("role") == "tool" for message in messages):
+    tool_messages = [
+        message for message in messages if message.get("role") == "tool"
+    ]
+    if len(tool_messages) == 2:
         query_ids = []
-        for message in messages:
-            if message.get("role") == "tool":
-                feedback = json.loads(message["content"])
-                if feedback["ok"] and "query_id" in feedback["data"]:
-                    query_ids.append(feedback["data"]["query_id"])
+        for message in tool_messages:
+            feedback = json.loads(message["content"])
+            assert feedback["ok"] is True, feedback
+            query_ids.append(feedback["data"]["query_id"])
         return {
             "role": "assistant",
             "content": json.dumps({
@@ -75,52 +72,54 @@ def fake_request_model(messages):
             }, ensure_ascii=False),
         }
 
-    tool_calls = []
-    for index, value in enumerate(["first", "second"]):
-        tool_calls.append({
+    index = len(tool_messages)
+    return {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{
             "id": f"call_query_{index}",
             "type": "function",
             "function": {
                 "name": "run_sql",
                 "arguments": json.dumps({
                     "sql": "SELECT ? AS value",
-                    "params": [value],
+                    "params": [["first", "second"][index]],
                 }),
             },
-        })
-    return {"role": "assistant", "content": "", "tool_calls": tool_calls}
+        }],
+    }
 
 
-with patch.object(agent, "QueryStore", side_effect=create_store):
-    with patch.object(agent, "request_model", side_effect=fake_request_model):
-        with redirect_stdout(StringIO()):
-            first_run = agent.run_agent("第一个测试任务")
-            second_run = agent.run_agent("第二个测试任务")
+graph = graph_agent.build_agent_graph(fake_request_model, agent.call_tool)
+with redirect_stdout(StringIO()):
+    first_state = graph.invoke(create_initial_state("第一个测试任务"))
+    second_state = graph.invoke(create_initial_state("第二个测试任务"))
 
-assert len(created_stores) == 2
-assert created_stores[0] is not created_stores[1]
-
-first_ids = []
-for run, task_store in zip([first_run, second_run], created_stores):
+restored_stores = []
+for state in [first_state, second_state]:
+    run = state["final_result"]
     assert run["status"] == "completed", run
     assert len(run["steps"]) == 2
+    assert [step["round"] for step in run["steps"]] == [1, 2]
     assert run["evidence_query_ids"] == [
         step["result"]["data"]["query_id"] for step in run["steps"]
     ]
+    task_store = QueryStore(state["query_results"])
+    restored_stores.append(task_store)
     for step, value in zip(run["steps"], ["first", "second"]):
         assert step["result"]["ok"] is True, step
-        task_query_id = step["result"]["data"]["query_id"]
-        assert task_store.get(task_query_id)["rows"] == [[value]]
-        if run is first_run:
-            first_ids.append(task_query_id)
+        query_id = step["result"]["data"]["query_id"]
+        assert task_store.get(query_id)["rows"] == [[value]]
 
+assert first_state["query_results"] is not second_state["query_results"]
+first_id = first_state["final_result"]["evidence_query_ids"][0]
 try:
-    created_stores[1].get(first_ids[0])
+    restored_stores[1].get(first_id)
 except ValueError:
     pass
 else:
-    raise AssertionError("不同 Agent 任务不应共享查询结果")
+    raise AssertionError("不同任务不应共享查询结果")
 
-print("同一 Agent 任务的两次查询共用一个存储")
-print("不同 Agent 任务的查询结果相互隔离")
+print("同一任务两轮工具节点之间，查询结果与编号保留")
+print("不同 Agent 任务的查询快照相互隔离")
 print("query_id 接入检查通过")

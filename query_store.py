@@ -3,8 +3,13 @@ from uuid import uuid4
 
 
 class QueryStore:
-    def __init__(self):
-        self._results = {}
+    def __init__(self, results=None):
+        if results is None:
+            results = {}
+        if not isinstance(results, dict):
+            raise ValueError("查询存储快照必须是字典")
+
+        self._results = deepcopy(results)
 
     def save(self, result):
         if not isinstance(result, dict):
@@ -19,6 +24,9 @@ class QueryStore:
             raise ValueError("当前任务中没有这个查询结果，请先执行查询")
 
         return deepcopy(self._results[query_id])
+
+    def snapshot(self):
+        return deepcopy(self._results)
 
 
 if __name__ == "__main__":

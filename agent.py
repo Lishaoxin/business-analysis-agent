@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 
 from tools import get_schema, run_sql, draw_chart
 from tool_models import TOOL_ARGUMENT_MODELS
-from query_store import QueryStore
-from completion_checks import validate_conclusion
+from graph_agent import run_graph_agent
 
 MODEL_NAME = "deepseek-flash"
 
@@ -128,130 +127,13 @@ def call_tool(tool_name, raw_arguments, query_store=None):
         }
 
 def run_agent(question, max_rounds=6, requires_query=True):
-    if not isinstance(question, str) or not question.strip():
-        raise ValueError("问题必须是非空字符串")
-
-    query_store = QueryStore()
-    steps = []
-    charts = []
-
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "你是业务数据分析助手，请用中文回答。"
-                "编写或修正SQL前，先通过get_schema确认真实表结构。"
-                "统计数值必须来自run_sql；金额以分存储，展示时转为元。"
-                "需要绘图时，先用run_sql取得合适的数据，再把其成功反馈中的query_id交给draw_chart。"
-                "query_id只在当前任务内有效，不得编造；绘图工具不接收SQL或原始数据。"
-                "图片路径使用工具返回值，不推断单价是否含税或优惠。"
-                "工具反馈ok=true时，data是有效结果；ok=false表示执行失败，error说明原因。"
-                "可修复的错误应修正SQL或参数后重试；权限受限或无法修复时如实说明。"
-                "仅依据成功的工具结果回答，结果足够时直接给出答案。"
-                "结束时必须在content中返回一个JSON对象，不使用Markdown代码块或额外文字。"
-                "对象只能包含status、answer、evidence_query_ids三个字段。"
-                "status只能是completed、needs_clarification、failed；answer保存中文回答或说明。"
-                "evidence_query_ids是支持回答的查询编号列表，只能引用当前任务成功返回的编号。"
-                f"本任务requires_query={requires_query}。"
-                "requires_query=True时，completed必须引用至少一个未截断的成功查询结果。"
-                "需要用户补充条件时使用needs_clarification；无法完成时使用failed；这两种状态允许空编号列表。"
-            ),
-        },
-        {
-            "role": "user",
-            "content": question.strip(),
-        },
-    ]
-
-    for round_index in range(max_rounds):
-        message = request_model(messages)
-        print(f"第 {round_index + 1} 轮模型返回：")
-        print(json.dumps(message, ensure_ascii=False, indent=2))
-
-        tool_calls = message.get("tool_calls") or []
-        if not tool_calls:
-            content = message.get("content") or ""
-            try:
-                data = json.loads(content)
-                conclusion = validate_conclusion(
-                    data, query_store, requires_query=requires_query
-                )
-            except (ValueError, TypeError) as exc:
-                print("结束信息校验失败：", exc)
-                messages.append({
-                    "role": "assistant",
-                    "content": content,
-                })
-                messages.append({
-                    "role": "user",
-                    "content": (
-                        f"结束信息未通过程序校验：{exc}。"
-                        "请继续处理原问题，必要时调用工具，再返回符合约定的JSON。"
-                        "查询失败不能当作0或无记录；需要用户补充条件时使用"
-                        "needs_clarification，无法完成时使用failed。"
-                    ),
-                })
-                continue
-
-            return {
-                **conclusion,
-                "steps": steps,
-                "charts": charts,
-            }
-
-        assistant_tool_calls = []
-        for tool_call in tool_calls:
-            assistant_tool_calls.append({
-                "id": tool_call["id"],
-                "type": tool_call["type"],
-                "function": tool_call["function"],
-            })
-
-        messages.append({
-            "role": "assistant",
-            "content": message.get("content"),
-            "tool_calls": assistant_tool_calls,
-        })
-
-        for tool_call in tool_calls:
-            tool_name = tool_call["function"]["name"]
-            raw_arguments = tool_call["function"]["arguments"]
-            result = call_tool(
-                tool_name, raw_arguments, query_store=query_store
-            )
-            steps.append({
-                "round": round_index + 1,
-                "tool_call_id": tool_call["id"],
-                "tool_name": tool_name,
-                "raw_arguments": raw_arguments,
-                "result": result,
-            })
-
-            if tool_name == "draw_chart" and result["ok"]:
-                charts.append(result["data"]["chart_path"])
-
-            if result["ok"]:
-                print("工具调用成功：", tool_name)
-            else:
-                print("工具调用失败：", tool_name)
-
-            print("工具反馈：")
-            print(json.dumps(result, ensure_ascii=False, indent=2))
-
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call["id"],
-                "content": json.dumps(result, ensure_ascii=False),
-            })
-
-    return {
-        "status": "failed",
-        "answer": f"已达到{max_rounds}轮请求上限，未能生成通过校验的结束信息。",
-        "evidence_query_ids": [],
-        "steps": steps,
-        "charts": charts,
-    }
-
+    return run_graph_agent(
+        question,
+        request_model=request_model,
+        call_tool=call_tool,
+        max_rounds=max_rounds,
+        requires_query=requires_query,
+    )
 
 if __name__ == "__main__":
     question = input("请输入分析问题：")

@@ -1,0 +1,175 @@
+import json
+
+from langgraph.graph import END, START, StateGraph
+
+from agent_state import AgentState, create_initial_state
+from completion_checks import validate_conclusion
+from query_store import QueryStore
+
+
+def route_after_model(state: AgentState):
+    if state["final_result"] is not None:
+        return END
+    if state["model_message"].get("tool_calls"):
+        return "tools"
+    return "validate"
+
+
+def route_after_validation(state: AgentState):
+    if state["final_result"] is not None:
+        return END
+    return "model"
+
+
+# 两个参数接收agent.py中的函数，节点执行时才调用它们。
+def build_agent_graph(request_model, call_tool):
+    # 模型节点先检查请求预算，再保存模型响应和新的调用次数。
+    def model_node(state: AgentState):
+        if state["rounds"] >= state["max_rounds"]:
+            return {
+                "final_result": {
+                    "status": "failed",
+                    "answer": (
+                        f"已达到{state['max_rounds']}轮请求上限，"
+                        "未能生成通过校验的结束信息。"
+                    ),
+                    "evidence_query_ids": [],
+                    "steps": state["steps"],
+                    "charts": state["charts"],
+                },
+            }
+
+        message = request_model(state["messages"])
+        rounds = state["rounds"] + 1
+        print(f"第 {rounds} 轮模型返回：")
+        print(json.dumps(message, ensure_ascii=False, indent=2))
+        return {"model_message": message, "rounds": rounds}
+
+    # 各节点从同一任务的State恢复查询结果；对象本身不放入State。
+    def tools_node(state: AgentState):
+        query_store = QueryStore(state["query_results"])
+        # 通过新列表返回更新，避免直接修改传入State中的列表。
+        messages = list(state["messages"])
+        steps = list(state["steps"])
+        charts = list(state["charts"])
+        message = state["model_message"]
+        tool_calls = message.get("tool_calls") or []
+
+        assistant_tool_calls = []
+        for tool_call in tool_calls:
+            assistant_tool_calls.append({
+                "id": tool_call["id"],
+                "type": tool_call["type"],
+                "function": tool_call["function"],
+            })
+
+        messages.append({
+            "role": "assistant",
+            "content": message.get("content"),
+            "tool_calls": assistant_tool_calls,
+        })
+
+        for tool_call in tool_calls:
+            tool_name = tool_call["function"]["name"]
+            raw_arguments = tool_call["function"]["arguments"]
+            result = call_tool(
+                tool_name, raw_arguments, query_store=query_store
+            )
+            steps.append({
+                "round": state["rounds"],
+                "tool_call_id": tool_call["id"],
+                "tool_name": tool_name,
+                "raw_arguments": raw_arguments,
+                "result": result,
+            })
+
+            if tool_name == "draw_chart" and result["ok"]:
+                charts.append(result["data"]["chart_path"])
+
+            if result["ok"]:
+                print("工具调用成功：", tool_name)
+            else:
+                print("工具调用失败：", tool_name)
+            print("工具反馈：")
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call["id"],
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+
+        return {
+            "messages": messages,
+            "steps": steps,
+            "charts": charts,
+            "query_results": query_store.snapshot(),
+        }
+
+    # 校验合格才写入final_result；不合格只追加反馈，路由回模型节点。
+    def validate_node(state: AgentState):
+        content = state["model_message"].get("content") or ""
+        query_store = QueryStore(state["query_results"])
+        try:
+            data = json.loads(content)
+            conclusion = validate_conclusion(
+                data,
+                query_store,
+                requires_query=state["requires_query"],
+            )
+        except (ValueError, TypeError) as exc:
+            print("结束信息校验失败：", exc)
+            messages = state["messages"] + [
+                {"role": "assistant", "content": content},
+                {
+                    "role": "user",
+                    "content": (
+                        f"结束信息未通过程序校验：{exc}。"
+                        "请继续处理原问题，必要时调用工具，再返回符合约定的JSON。"
+                        "查询失败不能当作0或无记录；需要用户补充条件时使用"
+                        "needs_clarification，无法完成时使用failed。"
+                    ),
+                },
+            ]
+            return {"messages": messages}
+
+        return {
+            "final_result": {
+                **conclusion,
+                "steps": state["steps"],
+                "charts": state["charts"],
+            },
+        }
+
+    # 构图阶段只注册节点和路由，不请求模型或执行SQL。
+    builder = StateGraph(AgentState)
+    builder.add_node("model", model_node)
+    builder.add_node("tools", tools_node)
+    builder.add_node("validate", validate_node)
+    builder.add_edge(START, "model")
+    builder.add_conditional_edges(
+        "model", route_after_model, ["tools", "validate", END]
+    )
+    builder.add_edge("tools", "model")
+    builder.add_conditional_edges(
+        "validate", route_after_validation, ["model", END]
+    )
+    return builder.compile()
+
+
+def run_graph_agent(
+    question, request_model, call_tool, max_rounds=6, requires_query=True
+):
+    if type(max_rounds) is not int or max_rounds < 1:
+        raise ValueError("max_rounds必须是正整数")
+
+    state = create_initial_state(
+        question, max_rounds=max_rounds, requires_query=requires_query
+    )
+    graph = build_agent_graph(request_model, call_tool)
+    # 图步数包含工具和校验节点，与模型请求次数不同。
+    final_state = graph.invoke(
+        state,
+        config={"recursion_limit": 2 * max_rounds + 3},
+    )
+    return final_state["final_result"]

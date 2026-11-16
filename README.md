@@ -1,6 +1,6 @@
 # 业务数据分析 Agent
 
-基于 SQLite、DeepSeek Tool Calling 和 FastAPI 的业务数据分析项目，使用模拟电商数据。
+基于 SQLite、DeepSeek Tool Calling、LangGraph 和 FastAPI 的业务数据分析项目，使用模拟电商数据。
 用户用自然语言提出问题，模型选择工具和参数，Python 执行受控查询或绘图，再将结果回传模型生成回答。
 网页可展示回答、工具调用记录和柱状图。
 
@@ -9,24 +9,25 @@
 - 第一版基线：`dbf2804`。下方归档的十题评测结果与耗时对应这一版本。
 - 第二版开发中：已加入 Pydantic 统一工具参数校验和任务内查询结果存储。模型向绘图工具传入 query_id，执行层取回对应数据，绘图函数直接使用该结果。
 - 已加入任务结束状态与证据检查：区分 completed、needs_clarification、failed；对需要查询的完成结果，检查引用编号是否存在、结果是否被截断。
-- 新增能力已通过离线检查，以及真实模型的类别销售额绘图和已支付订单计数验收；第二版完整业务题集评测将在后续进行。
+- 执行流程已迁移为 LangGraph 的 model、tools、validate 三个节点，支持条件路由、任务内查询快照传递与模型调用次数限制。
+- LangGraph 迁移已通过离线回归检查和一次真实模型类别销售额绘图验收。当前每次请求创建独立任务状态，会话记忆与持久化将在后续接入。
+- 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
 
 ```mermaid
 flowchart TD
     U["网页输入问题"] --> H["FastAPI：POST /analyze"]
-    H --> A["run_agent"]
+    H --> A["run_agent → run_graph_agent"]
     C["CLI 输入问题"] --> A
-    A --> M["模型返回工具请求或最终回答"]
-    M -->|需要工具| P["Python 解析参数与分发"]
-    P --> T["get_schema / run_sql / draw_chart"]
-    T --> F["成功结果或错误反馈"]
-    F --> M
-    M -->|提交结束JSON| E["结束信息与查询引用检查"]
-    E -->|通过| R["status / answer / evidence_query_ids / steps / charts"]
-    E -->|失败，反馈修正| M
-    R --> V["网页展示或 CLI 输出"]
+    A --> M["model：检查预算并请求模型"]
+    M -->|工具请求| T["tools：执行工具并保存查询快照"]
+    T --> M
+    M -->|结束JSON| V["validate：检查结束信息与引用"]
+    V -->|需要修正| M
+    V -->|通过| R["返回状态、回答、引用编号、工具记录与图表"]
+    M -->|预算耗尽，返回failed| R
+    R --> D["网页展示或 CLI 输出"]
 ```
 
 - `get_schema`：读取三张业务表的真实建表语句。
@@ -56,7 +57,10 @@ flowchart TD
 | --- | --- |
 | [init_db.py](init_db.py)、[seed_data.py](seed_data.py) | 创建业务数据库并插入模拟数据 |
 | [tools.py](tools.py) | 数据结构、只读 SQL 和绘图工具 |
-| [agent.py](agent.py) | 模型请求、工具分发、多轮反馈与 CLI |
+| [agent.py](agent.py) | 模型请求、工具分发、图执行入口与 CLI |
+| [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由与调用次数限制 |
+| [agent_state.py](agent_state.py) | 任务状态字段与初始化 |
+| [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
 | [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 校验快照、恢复独立评测库、采集结果 |
