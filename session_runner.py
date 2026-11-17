@@ -20,7 +20,7 @@ class SessionBusyError(RuntimeError):
 
 def run_session_agent(
     question, thread_id, request_model, call_tool,
-    max_rounds=6, requires_query=True, db_path=None,
+    max_rounds=6, requires_query=True, db_path=None, on_event=None,
 ):
     if not isinstance(thread_id, str):
         raise ValueError("thread_id必须是非空字符串")
@@ -46,7 +46,7 @@ def run_session_agent(
         serde = JsonPlusSerializer(allowed_msgpack_modules=[])
         checkpointer = SqliteSaver(conn, serde=serde)
         graph = build_agent_graph(
-            request_model, call_tool, checkpointer=checkpointer
+            request_model, call_tool, checkpointer=checkpointer, on_event=on_event
         )
         config = {
             # 与同一数据库里的教学演示会话区分。

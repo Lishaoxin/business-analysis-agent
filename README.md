@@ -2,7 +2,7 @@
 
 基于 SQLite、DeepSeek Tool Calling、LangGraph 和 FastAPI 的业务数据分析项目，使用模拟电商数据。
 用户用自然语言提出问题，模型选择工具和参数，Python 执行受控查询或绘图，再将结果回传模型生成回答。
-网页支持连续追问、缺失条件澄清，并展示回答、工具调用记录和柱状图。
+网页支持连续追问、缺失条件澄清，通过 SSE 逐条接收工具进度，并在任务结束后展示正式回答和柱状图。
 
 ## 版本与验证范围
 
@@ -13,13 +13,16 @@
 - LangGraph 迁移已通过离线回归检查和一次真实模型类别销售额绘图验收。
 - 网页与 API 已接入 thread_id 和 SQLite checkpointer，支持同编号连续追问、服务重启后恢复历史、新会话隔离，以及澄清后补充条件继续完成任务。
 - 会话能力已通过离线检查和真实模型功能验收，详见下方验证记录。
+- 已接入可选事件回调、后台任务队列和 POST SSE 接口。网页读取分块事件并更新工具记录，正式回答在结束校验通过后发送。
+- SSE 已通过事件、接口及网页离线检查，并完成真实网页验收：工具记录先出现，正式回答随后展示，金额、图片与证据引用一致。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
 
 ```mermaid
 flowchart TD
-    U["网页输入问题"] --> H["FastAPI：POST /analyze"]
+    U["网页输入问题"] --> H["FastAPI：POST /analyze/stream"]
+    J["JSON 客户端：POST /analyze"] --> S
     H --> S["复用或生成 thread_id"]
     S --> A["run_agent → run_session_agent"]
     A --> N["读取会话历史，重建本轮 State"]
@@ -29,11 +32,16 @@ flowchart TD
     N0 --> M
     M -->|工具请求| T["tools：执行工具并保存查询快照"]
     T --> M
+    T -.工具事件.-> E["on_event → 后台队列"]
+    E --> P["SSE 工具进度"]
+    P --> D
     M -->|结束JSON| V["validate：检查结束信息与引用"]
     V -->|需要修正| M
     V -->|通过| R["记录本轮结束问答，返回回答、证据与产物"]
     M -->|预算耗尽，返回failed| R
-    R --> D["网页展示或 CLI 输出"]
+    R -->|流式请求| F["SSE final：正式结果"]
+    F --> D["网页展示或 CLI 输出"]
+    R -->|JSON 接口或 CLI| D
 ```
 
 - `get_schema`：读取三张业务表的真实建表语句。
@@ -69,6 +77,7 @@ flowchart TD
 | [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由与调用次数限制 |
 | [agent_state.py](agent_state.py) | 任务状态、历史问答初始化与本轮结束记录 |
 | [session_runner.py](session_runner.py) | 按会话编号恢复历史、SQLite 持久化与同会话请求冲突保护 |
+| [event_models.py](event_models.py)、[stream_runner.py](stream_runner.py) | 进度事件外层格式、后台运行与队列生命周期 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
@@ -165,9 +174,31 @@ CLI 当前执行单次独立任务；网页与 API 通过 `thread_id` 支持连�
 `completed` 表示结束信息与引用检查通过，业务答案仍需核验；`needs_clarification` 表示需要补充条件；`failed` 表示本轮未能完成。
 HTTP 200 与业务完成状态分别判断。
 
-同一服务进程中，同编号的重叠请求返回 HTTP 409；模型请求超时返回 504，模型服务请求失败返回 502。
+对于 `/analyze`，同一服务进程中同编号的重叠请求返回 HTTP 409；模型请求超时返回 504，模型服务请求失败返回 502。
 HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘路径。
 图片由 `GET /outputs/文件名.png` 读取已有文件。
+
+### 流式接口
+
+`POST /analyze/stream` 使用相同的 JSON 请求字段，响应类型为 `text/event-stream`。
+当前网页通过 `fetch` 发送 POST，并持续读取响应体；`/analyze` 继续保留完整 JSON 返回方式。
+
+| 事件 | 内容与含义 |
+| --- | --- |
+| `tool_start` | 工具开始执行，包含轮数、工具调用编号、工具名与原始参数 |
+| `tool_result` | 工具执行结果，包含对应步骤和 `result`；`ok=false` 时模型仍可修正后继续 |
+| `final` | 整次调用取得正式结果，包含原接口结果字段和图表 URL；任务状态可以是完成、澄清或失败 |
+| `error` | 本次执行无法继续，包含会话编号、错误类型、说明及对应的 `status_code` |
+
+进度由 Python 在工具实际执行前后产生。未经结束校验的模型文案不会作为 `final` 发送。
+事件回调与发送队列是运行时对象，不放入 State 或 SQLite 检查点。
+
+请求字段错误在推送开始前返回 HTTP 400／422；推送开始后 HTTP 响应已经发出，执行异常改用 `error` 事件传递。
+例如，同会话冲突、模型超时分别在 `error.data.status_code` 中表示为 409、504，不能只看 HTTP 200 判断任务是否成功。
+
+后台队列有长度上限，客户端断开后停止积压发送事件。正在执行的模型请求不会被强行终止，原任务会自行收尾；同会话占用在实际任务结束后释放。
+网页收到正式终止事件后停止读取；连接提前结束而没有 `final` 时显示故障，保留已收进度和输入，不自动重发任务。
+本地问答历史的恢复使用 `thread_id`；当前未实现 SSE 的事件重放或 `Last-Event-ID` 断点续传。
 
 ## 会话行为
 
@@ -195,7 +226,7 @@ node .\check_session_page.cjs
 
 最后一项需要 Node.js，使用内置模块执行网页脚本的逻辑检查；运行 Python 后端不需要 Node.js。
 离线检查覆盖历史传递、两个独立进程恢复同会话、不同编号隔离、异常后的历史保留、同编号请求冲突、无编号独立调用，以及网页编号与状态显示。
-网页逻辑检查使用模拟 DOM，不代替真实浏览器验收。
+网页逻辑检查使用模拟 DOM 和分块字节流，不代替真实浏览器验收。
 
 2026-11-17，已在真实网页和模型上完成以下功能验收：
 
@@ -207,6 +238,33 @@ node .\check_session_page.cjs
 | 补充条件继续完成 | 同一会话补充“2026年9月和10月。”后，恢复原统计要求并重新查询，返回 completed 和本轮证据编号 |
 
 上述记录用于验证会话行为；下方十题评测结果仍对应第一版基线，第二版完整业务题集评测另行进行。
+
+## SSE 功能验证
+
+在已有开发依赖环境中，可用下面命令复现离线检查；它们使用预设模型与工具，不调用真实模型 API：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 check_agent_events.py
+.\venv\Scripts\python.exe -X utf8 check_agent_completion.py
+.\venv\Scripts\python.exe -X utf8 check_sse_api.py
+.\venv\Scripts\python.exe -X utf8 check_session_api.py
+node .\check_session_page.cjs
+```
+
+检查覆盖事件与真实工具调用的先后顺序、失败后继续修复、事件数据隔离、旧接口兼容、任务尚未结束时收到进度、有界队列与客户端断线清理、同会话占用、终止事件、SSE 响应头及帧格式，以及网页中文分块解析与异常处理。
+队列和断线场景使用临时数据库、假模型或 ASGI 消息模拟；所有测试线程在结束时收尾。
+
+2026-11-17，真实网页请求“按商品类别统计已支付订单的销售额，按销售额降序排列，并绘制柱状图。”的核验记录：
+
+| 检查项 | 本次结果 |
+| --- | --- |
+| 统计结果 | 电脑配件 1800 元、显示设备 1300 元，均来自本轮已支付订单查询 |
+| 查询与绘图关联 | 绘图参数、工具反馈与最终引用使用同一 `query_id` |
+| 图片 | 两柱降序、中文和金额正常，用户确认网页显示正常 |
+| 结束校验 | 第 4 轮夹带文案的结束信息被拒绝，第 5 轮修正后才正式返回；历史仅保存通过后的回答 |
+| 回答前的进度显示 | 用户确认先看到工具记录，随后才出现正式回答 |
+
+本次为功能验收记录，不替代第二版完整业务题集评测。
 
 ## 固定任务评测
 

@@ -127,7 +127,9 @@ def call_tool(tool_name, raw_arguments, query_store=None):
             "error": str(exc),
         }
 
-def run_agent(question, max_rounds=6, requires_query=True, thread_id=None):
+def run_agent(
+    question, max_rounds=6, requires_query=True, thread_id=None, on_event=None
+):
     if thread_id is None:
         return run_graph_agent(
             question,
@@ -135,6 +137,7 @@ def run_agent(question, max_rounds=6, requires_query=True, thread_id=None):
             call_tool=call_tool,
             max_rounds=max_rounds,
             requires_query=requires_query,
+            on_event=on_event,
         )
 
     return run_session_agent(
@@ -144,6 +147,7 @@ def run_agent(question, max_rounds=6, requires_query=True, thread_id=None):
         call_tool=call_tool,
         max_rounds=max_rounds,
         requires_query=requires_query,
+        on_event=on_event,
     )
 
 if __name__ == "__main__":

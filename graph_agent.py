@@ -1,9 +1,11 @@
+from copy import deepcopy
 import json
 
 from langgraph.graph import END, START, StateGraph
 
 from agent_state import AgentState, create_initial_state, finish_turn
 from completion_checks import validate_conclusion
+from event_models import AgentEvent
 from query_store import QueryStore
 
 
@@ -21,8 +23,18 @@ def route_after_validation(state: AgentState):
     return "model"
 
 
-# 两个参数接收agent.py中的函数，节点执行时才调用它们。
-def build_agent_graph(request_model, call_tool, checkpointer=None):
+# on_event接收进度字典；它是运行时函数，不放进State。
+def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None):
+    if on_event is not None and not callable(on_event):
+        raise ValueError("on_event必须是可调用对象或None")
+
+    def emit_event(event_name, data):
+        if on_event is None:
+            return
+        event = AgentEvent(event=event_name, data=deepcopy(data))
+        # 给观察方一份独立数据，避免其修改影响工具记录或查询结果。
+        on_event(event.model_dump(mode="json"))
+
     # 模型节点先检查请求预算，再保存模型响应和新的调用次数。
     def model_node(state: AgentState):
         if state["rounds"] >= state["max_rounds"]:
@@ -68,16 +80,18 @@ def build_agent_graph(request_model, call_tool, checkpointer=None):
         for tool_call in tool_calls:
             tool_name = tool_call["function"]["name"]
             raw_arguments = tool_call["function"]["arguments"]
-            result = call_tool(
-                tool_name, raw_arguments, query_store=query_store
-            )
-            steps.append({
+            tool_info = {
                 "round": state["rounds"],
                 "tool_call_id": tool_call["id"],
                 "tool_name": tool_name,
                 "raw_arguments": raw_arguments,
-                "result": result,
-            })
+            }
+            emit_event("tool_start", tool_info)
+            result = call_tool(
+                tool_name, raw_arguments, query_store=query_store
+            )
+            step = {**tool_info, "result": result}
+            steps.append(step)
 
             if tool_name == "draw_chart" and result["ok"]:
                 charts.append(result["data"]["chart_path"])
@@ -94,6 +108,7 @@ def build_agent_graph(request_model, call_tool, checkpointer=None):
                 "tool_call_id": tool_call["id"],
                 "content": json.dumps(result, ensure_ascii=False),
             })
+            emit_event("tool_result", step)
 
         return {
             "messages": messages,
@@ -148,7 +163,8 @@ def build_agent_graph(request_model, call_tool, checkpointer=None):
 
 
 def run_graph_agent(
-    question, request_model, call_tool, max_rounds=6, requires_query=True
+    question, request_model, call_tool, max_rounds=6, requires_query=True,
+    on_event=None,
 ):
     if type(max_rounds) is not int or max_rounds < 1:
         raise ValueError("max_rounds必须是正整数")
@@ -156,7 +172,7 @@ def run_graph_agent(
     state = create_initial_state(
         question, max_rounds=max_rounds, requires_query=requires_query
     )
-    graph = build_agent_graph(request_model, call_tool)
+    graph = build_agent_graph(request_model, call_tool, on_event=on_event)
     # 图步数包含工具和校验节点，与模型请求次数不同。
     final_state = graph.invoke(
         state,

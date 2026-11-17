@@ -1,14 +1,17 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 from uuid import uuid4
 
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from agent import run_agent
 from session_runner import SessionBusyError
+from stream_runner import AgentEventStream
 
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -37,25 +40,27 @@ class AnalyzeRequest(BaseModel):
         return value
 
 
-@app.post("/analyze")
-def analyze(body: AnalyzeRequest, request: Request):
+def prepare_analysis(body: AnalyzeRequest):
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="问题不能为空")
+    return question, body.thread_id or uuid4().hex
 
+
+def with_chart_urls(run_result, request: Request):
+    chart_urls = [
+        str(request.url_for("outputs", path=Path(chart_path).name))
+        for chart_path in run_result["charts"]
+    ]
+    return {**run_result, "charts": chart_urls}
+
+
+@app.post("/analyze")
+def analyze(body: AnalyzeRequest, request: Request):
+    question, thread_id = prepare_analysis(body)
     try:
-        # 首问可以不传编号；追问必须传回同一个编号。
-        thread_id = body.thread_id or uuid4().hex
         run_result = run_agent(question, thread_id=thread_id)
-
-        chart_urls = []
-        for chart_path in run_result["charts"]:
-            filename = Path(chart_path).name
-            chart_url = request.url_for("outputs", path=filename)
-            chart_urls.append(str(chart_url))
-
-        run_result["charts"] = chart_urls
-        return run_result
+        return with_chart_urls(run_result, request)
     except SessionBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except requests.Timeout as exc:
@@ -69,3 +74,29 @@ def analyze(body: AnalyzeRequest, request: Request):
         ) from exc
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def prepare_stream(body: AnalyzeRequest):
+    # 在流开始前校验，保证空问题可以正常返回HTTP 400。
+    question, thread_id = prepare_analysis(body)
+    stream = AgentEventStream(run_agent, question, thread_id)
+    try:
+        yield stream
+    finally:
+        # 请求结束或客户端断开后，停止继续积压发送事件。
+        stream.close()
+
+
+@app.post("/analyze/stream", response_class=EventSourceResponse)
+async def analyze_stream(
+    request: Request,
+    stream: AgentEventStream = Depends(prepare_stream, scope="request"),
+) -> AsyncIterator[ServerSentEvent]:
+    try:
+        async for event in stream.events():
+            data = event["data"]
+            if event["event"] == "final":
+                data = with_chart_urls(data, request)
+            yield ServerSentEvent(event=event["event"], data=data)
+    finally:
+        stream.close()
