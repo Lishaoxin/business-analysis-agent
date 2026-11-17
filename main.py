@@ -3,15 +3,17 @@ from pathlib import Path
 from uuid import uuid4
 
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from agent import run_agent
+from run_trace import RunTrace
 from session_runner import SessionBusyError
 from stream_runner import AgentEventStream
+from trace_logging import log_trace_event
 
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -55,35 +57,53 @@ def with_chart_urls(run_result, request: Request):
     return {**run_result, "charts": chart_urls}
 
 
+def traced_http_error(trace, thread_id, exc, code, message):
+    info = trace.finish()
+    log_trace_event(
+        "analysis_error", info, thread_id=thread_id,
+        error_type=type(exc).__name__, status_code=code,
+    )
+    return HTTPException(
+        status_code=code, detail=message,
+        headers={"X-Trace-ID": info["trace_id"]},
+    )
+
+
 @app.post("/analyze")
-def analyze(body: AnalyzeRequest, request: Request):
+def analyze(body: AnalyzeRequest, request: Request, response: Response):
     question, thread_id = prepare_analysis(body)
+    trace = RunTrace()
+    response.headers["X-Trace-ID"] = trace.trace_id
+    log_trace_event("analysis_start", trace.snapshot(), thread_id=thread_id)
     try:
         run_result = run_agent(question, thread_id=thread_id)
-        return with_chart_urls(run_result, request)
+        info = trace.finish()
+        result = with_chart_urls({**run_result, **info}, request)
+        log_trace_event("analysis_end", info, thread_id=thread_id, status=run_result["status"])
+        return result
     except SessionBusyError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        raise traced_http_error(trace, thread_id, exc, 409, str(exc)) from exc
     except requests.Timeout as exc:
-        raise HTTPException(
-            status_code=504, detail="模型请求超时，请稍后重试"
-        ) from exc
+        raise traced_http_error(trace, thread_id, exc, 504, "模型请求超时，请稍后重试") from exc
     except requests.RequestException as exc:
-        raise HTTPException(
-            status_code=502,
-            detail="模型服务请求失败，请检查服务配置或稍后重试",
+        raise traced_http_error(
+            trace, thread_id, exc, 502,
+            "模型服务请求失败，请检查服务配置或稍后重试",
         ) from exc
     except (ValueError, RuntimeError) as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise traced_http_error(trace, thread_id, exc, 500, str(exc)) from exc
+    except Exception as exc:
+        raise traced_http_error(trace, thread_id, exc, 500, "分析执行异常，请稍后重试") from exc
 
 
-def prepare_stream(body: AnalyzeRequest):
-    # 在流开始前校验，保证空问题可以正常返回HTTP 400。
+def prepare_stream(body: AnalyzeRequest, response: Response):
+    # 校验失败时尚未开始分析，不创建本次分析的trace。
     question, thread_id = prepare_analysis(body)
     stream = AgentEventStream(run_agent, question, thread_id)
+    response.headers["X-Trace-ID"] = stream.trace.trace_id
     try:
         yield stream
     finally:
-        # 请求结束或客户端断开后，停止继续积压发送事件。
         stream.close()
 
 

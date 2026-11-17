@@ -15,6 +15,8 @@
 - 会话能力已通过离线检查和真实模型功能验收，详见下方验证记录。
 - 已接入可选事件回调、后台任务队列和 POST SSE 接口。网页读取分块事件并更新工具记录，正式回答在结束校验通过后发送。
 - SSE 已通过事件、接口及网页离线检查，并完成真实网页验收：工具记录先出现，正式回答随后展示，金额、图片与证据引用一致。
+- 分析接口已接入每次分析独立的 `trace_id`、服务端累计耗时与 JSON 追踪摘要，支持响应和日志关联；同会话后续分析仍使用新的追踪编号。
+- 追踪功能已通过离线检查，真实 JSON 请求的返回体与结束日志编号、耗时一致。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
@@ -78,6 +80,7 @@ flowchart TD
 | [agent_state.py](agent_state.py) | 任务状态、历史问答初始化与本轮结束记录 |
 | [session_runner.py](session_runner.py) | 按会话编号恢复历史、SQLite 持久化与同会话请求冲突保护 |
 | [event_models.py](event_models.py)、[stream_runner.py](stream_runner.py) | 进度事件外层格式、后台运行与队列生命周期 |
+| [run_trace.py](run_trace.py)、[trace_logging.py](trace_logging.py) | 本次分析的追踪编号、累计耗时与 JSON 追踪摘要 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
@@ -170,7 +173,7 @@ CLI 当前执行单次独立任务；网页与 API 通过 `thread_id` 支持连�
 不传 `thread_id` 或传 `null` 时，API 会生成新编号；响应返回本次实际使用的 `thread_id`，后续追问需要传回该编号。
 编号去除首尾空格后须为 1—128 个字符。请求拒绝错误类型及多余字段。
 
-响应包含 `thread_id`（会话编号）、`status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`steps`（工具调用及反馈）、`charts`（图表）。
+响应包含 `thread_id`（会话编号）、`status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`steps`（工具调用及反馈）、`charts`（图表），以及接口附加的 `trace_id`、`elapsed_ms`。
 `completed` 表示结束信息与引用检查通过，业务答案仍需核验；`needs_clarification` 表示需要补充条件；`failed` 表示本轮未能完成。
 HTTP 200 与业务完成状态分别判断。
 
@@ -199,6 +202,33 @@ HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘�
 后台队列有长度上限，客户端断开后停止积压发送事件。正在执行的模型请求不会被强行终止，原任务会自行收尾；同会话占用在实际任务结束后释放。
 网页收到正式终止事件后停止读取；连接提前结束而没有 `final` 时显示故障，保留已收进度和输入，不自动重发任务。
 本地问答历史的恢复使用 `thread_id`；当前未实现 SSE 的事件重放或 `Last-Event-ID` 断点续传。
+
+### 分析追踪与耗时
+
+请求通过问题与会话编号校验后，由 Python 为本次分析创建 `RunTrace`：
+
+| 字段 | 用途 |
+| --- | --- |
+| `thread_id` | 选择会话历史；同会话的追问沿用 |
+| `trace_id` | 区分本次分析；每次请求重新生成 |
+| `elapsed_ms` | 本次服务端分析的累计耗时，单位毫秒 |
+| `X-Trace-ID` | HTTP 响应头中的追踪编号 |
+
+`POST /analyze` 在成功响应体中附加追踪编号与耗时；发生执行异常时，通过响应头的追踪编号查找错误摘要，保留原来的 `detail` 字符串和错误码。
+`POST /analyze/stream` 的工具事件、`final`、`error` 数据中附加相同追踪编号和累计耗时；响应头的 `X-Trace-ID` 与之对应。
+追踪字段由程序生成，不能在请求体中指定，也不要求模型在业务结束 JSON 中生成这些字段。
+
+计时使用 `perf_counter`，从创建本次追踪对象到 Agent 返回或发生执行异常时结算。`finish()` 后耗时固定，结果和结束日志使用同一份数值。
+它包含本次调用中的模型请求、工具执行及会话保存等时间，不是单条 SQL 耗时或 CPU 时间，也不代表客户端到服务端的完整网络往返与浏览器渲染耗时。
+客户端断开只停止事件发送；后台实际结束后才结算并记录结束摘要。
+校验失败的 400／422 尚未启动分析，不分配本次分析的追踪编号。CLI 和独立评测调用维持原来的业务返回约定。
+
+新增追踪摘要复用 Uvicorn 日志配置，消息内容为 JSON：
+
+- JSON 接口记录 `analysis_start`、`analysis_end` 或 `analysis_error`。
+- SSE 接口还记录工具的 `tool_start`、`tool_result` 摘要。
+- 摘要包含追踪与会话编号、耗时、状态、工具调用标识或错误类型，不加入问题、SQL 参数、结果行或回答。原有模型和工具调试打印仍保留。
+- 追踪对象和计时函数不放进会话 State 或 SQLite 检查点；同一会话的下一问重新计时。
 
 ## 会话行为
 
@@ -265,6 +295,32 @@ node .\check_session_page.cjs
 | 回答前的进度显示 | 用户确认先看到工具记录，随后才出现正式回答 |
 
 本次为功能验收记录，不替代第二版完整业务题集评测。
+
+## 追踪功能验证
+
+使用以下命令复现离线检查，不调用真实模型 API：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 check_trace_api.py
+.\venv\Scripts\python.exe -X utf8 check_session_api.py
+.\venv\Scripts\python.exe -X utf8 check_sse_api.py
+```
+
+新检查使用可控时钟验证单位换算、结束后耗时固定、同会话不同分析编号、响应头／事件／日志关联，以及断开连接后后台完成的计时边界。
+检查里的 50／125／150 毫秒是预设值；异常用例产生的 `analysis_error` 是测试内容。
+
+2026-11-17，真实 `POST /analyze` 请求“已支付订单共有多少笔？”的核验记录：
+
+| 检查项 | 本次结果 |
+| --- | --- |
+| 业务结果 | `completed`，已支付订单 4 笔，查询与最终证据编号一致 |
+| 返回体与日志 | 同一 `trace_700950514bc74dac8e29b45a67501dd9` 对应本次开始、结束与返回结果 |
+| 累计耗时 | 返回体与 `analysis_end` 均为 6206.983 毫秒，约 6.207 秒 |
+| 真实响应头 | 用户确认 `x-trace-id` 与返回体、追踪日志编号一致 |
+
+上述耗时仅是一次真实请求的样例，不是平均响应时间或独立评测指标。
+SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实样例使用 JSON 接口。
+工具与模型分项耗时、真实 Token 用量、全任务预算仍待后续补充。
 
 ## 固定任务评测
 
