@@ -7,6 +7,7 @@ from agent_state import AgentState, create_initial_state, finish_turn
 from completion_checks import validate_conclusion
 from event_models import AgentEvent
 from query_store import QueryStore
+from time import perf_counter
 
 
 def route_after_model(state: AgentState):
@@ -47,11 +48,24 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
                 "evidence_query_ids": [],
             })
 
+        started_at = perf_counter()
         message = request_model(state["messages"])
+        duration_ms = round((perf_counter() - started_at) * 1000, 3)
+
         rounds = state["rounds"] + 1
+        model_calls = state["model_calls"] + [{
+            "round": rounds,
+            "duration_ms": duration_ms,
+        }]
+
         print(f"第 {rounds} 轮模型返回：")
         print(json.dumps(message, ensure_ascii=False, indent=2))
-        return {"model_message": message, "rounds": rounds}
+
+        return {
+            "model_message": message,
+            "rounds": rounds,
+            "model_calls": model_calls,
+        }
 
     # 各节点从同一任务的State恢复查询结果；对象本身不放入State。
     def tools_node(state: AgentState):
@@ -87,10 +101,19 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
                 "raw_arguments": raw_arguments,
             }
             emit_event("tool_start", tool_info)
+            # 只测本次工具调用，进度回调不计入。
+            started_at = perf_counter()
             result = call_tool(
                 tool_name, raw_arguments, query_store=query_store
             )
-            step = {**tool_info, "result": result}
+            duration_ms = round(
+                (perf_counter() - started_at) * 1000, 3
+            )
+            step = {
+                **tool_info,
+                "result": result,
+                "duration_ms": duration_ms,
+            }
             steps.append(step)
 
             if tool_name == "draw_chart" and result["ok"]:

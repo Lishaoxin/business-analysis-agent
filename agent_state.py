@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     requires_query: bool
     query_results: dict[str, dict]
     final_result: dict | None
+    model_calls: list[dict]
 
 
 def create_initial_state(
@@ -73,6 +74,7 @@ def create_initial_state(
         "requires_query": requires_query,
         "query_results": {},
         "final_result": None,
+        "model_calls": [],
     }
 
 
@@ -86,6 +88,7 @@ def finish_turn(state: AgentState, conclusion: dict):
             **conclusion,
             "steps": state["steps"],
             "charts": state["charts"],
+            "model_calls": state["model_calls"],
         },
     }
 
