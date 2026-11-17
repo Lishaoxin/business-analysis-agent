@@ -8,6 +8,7 @@ from completion_checks import validate_conclusion
 from event_models import AgentEvent
 from query_store import QueryStore
 from time import perf_counter
+from usage_models import parse_usage
 
 
 def route_after_model(state: AgentState):
@@ -49,13 +50,22 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
             })
 
         started_at = perf_counter()
-        message = request_model(state["messages"])
+        reply = request_model(state["messages"])
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
+
+        if "message" in reply:
+            message = reply["message"]
+            usage = parse_usage(reply.get("usage"))
+        else:
+            # 兼容之前只返回消息的预设模型函数。
+            message = reply
+            usage = None
 
         rounds = state["rounds"] + 1
         model_calls = state["model_calls"] + [{
-            "round": rounds,
-            "duration_ms": duration_ms,
+        "round": rounds,
+        "duration_ms": duration_ms,
+        "usage": usage,
         }]
 
         print(f"第 {rounds} 轮模型返回：")

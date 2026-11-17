@@ -18,6 +18,7 @@
 - 分析接口已接入每次分析独立的 `trace_id`、服务端累计耗时与 JSON 追踪摘要，支持响应和日志关联；同会话后续分析仍使用新的追踪编号。
 - 追踪功能已通过离线检查，真实 JSON 请求的返回体与结束日志编号、耗时一致。
 - 已记录每轮模型请求及每次工具调用的分项耗时，并通过离线检查和一次真实 JSON 请求核验。
+- 已保存模型服务返回的逐轮 Token 用量并生成本次任务汇总；用量缺失时标记为未知，已有离线检查和真实 JSON 请求核验记录。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
@@ -76,9 +77,10 @@ flowchart TD
 | --- | --- |
 | [init_db.py](init_db.py)、[seed_data.py](seed_data.py) | 创建业务数据库并插入模拟数据 |
 | [tools.py](tools.py) | 数据结构、只读 SQL 和绘图工具 |
-| [agent.py](agent.py) | 模型请求、工具分发、图执行入口与 CLI |
-| [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由、调用次数限制与模型／工具分项计时 |
-| [agent_state.py](agent_state.py) | 任务状态、历史问答初始化与本轮结束记录 |
+| [agent.py](agent.py) | 模型请求与服务用量提取、工具分发、图执行入口与 CLI |
+| [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由、调用次数限制、分项计时与逐轮用量记录 |
+| [agent_state.py](agent_state.py) | 任务状态、历史问答初始化、本轮结束记录与用量汇总接入 |
+| [usage_models.py](usage_models.py) | 服务 Token 计数的校验、未知值处理与任务汇总 |
 | [session_runner.py](session_runner.py) | 按会话编号恢复历史、SQLite 持久化与同会话请求冲突保护 |
 | [event_models.py](event_models.py)、[stream_runner.py](stream_runner.py) | 进度事件外层格式、后台运行与队列生命周期 |
 | [run_trace.py](run_trace.py)、[trace_logging.py](trace_logging.py) | 本次分析的追踪编号、累计耗时与 JSON 追踪摘要 |
@@ -174,7 +176,7 @@ CLI 当前执行单次独立任务；网页与 API 通过 `thread_id` 支持连�
 不传 `thread_id` 或传 `null` 时，API 会生成新编号；响应返回本次实际使用的 `thread_id`，后续追问需要传回该编号。
 编号去除首尾空格后须为 1—128 个字符。请求拒绝错误类型及多余字段。
 
-响应包含 `thread_id`（会话编号）、`status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`model_calls`（模型调用记录）、`steps`（工具调用及反馈）、`charts`（图表），以及接口附加的 `trace_id`、`elapsed_ms`。
+响应包含 `thread_id`（会话编号）、`status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`model_calls`（模型调用及用量记录）、`usage_summary`（本次用量汇总）、`steps`（工具调用及反馈）、`charts`（图表），以及接口附加的 `trace_id`、`elapsed_ms`。
 `completed` 表示结束信息与引用检查通过，业务答案仍需核验；`needs_clarification` 表示需要补充条件；`failed` 表示本轮未能完成。
 HTTP 200 与业务完成状态分别判断。
 
@@ -246,6 +248,28 @@ HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘�
 模型业务结束 JSON 仍只有原来的三个字段，性能记录由程序附加。JSON 响应与 SSE `final` 均包含 `model_calls` 和完整 `steps`；工具 `tool_result` 事件携带对应步骤的耗时。
 当前网页维持工具状态与回答展示，新增 JSON 追踪日志摘要仍按上一节字段记录。
 
+
+### Token 用量
+
+模型请求函数保留 HTTP 响应顶层的 `usage`，图节点提取三种基础计数写入 `model_calls[].usage`：`prompt_tokens`（输入）、`completion_tokens`（输出）、`total_tokens`（两者之和）。字段定义见 [DeepSeek Chat Completions 官方文档](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion/)。
+计数使用服务实际返回值，包含每次请求所带入的上下文；不按问题字数估计，也不将缓存命中数再次叠加到输入总数。
+
+`TokenUsage` 严格检查非负整数以及输入加输出等于总数；服务附带的缓存等扩展字段暂时忽略。缺失或 `null` 用量保留为 `None`（JSON 中为 `null`），明确返回的零计数则保留为 0。格式不合法的计数触发校验错误，沿既有执行异常流程处理。
+
+任务结束时，Python 根据本轮已保存的调用记录计算 `usage_summary`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `model_call_count` | 本轮已记录的模型调用数量 |
+| `usage_call_count` | 其中提供有效用量的调用数量 |
+| `complete` | 上述数量是否相等，表示用量覆盖是否齐全 |
+| `prompt_tokens`、`completion_tokens`、`total_tokens` | 所有记录用量齐全时逐轮相加，否则三个总计均为 `null` |
+
+`complete` 与业务 `status` 分别判断：业务分析可以完成而用量不齐全，任务失败也可能具有完整的用量记录。没有调用记录时，两种调用数量和三个总计均为 0。
+格式纠错产生的已返回调用也计入；同一会话的新问题重建本轮记录，不累计上一问的用量。后续请求再次发送的历史上下文仍属于该次请求的输入。
+
+逐轮用量与汇总由程序附加到正式结果，JSON 响应和 SSE `final` 均可携带。模型消息、工具反馈和已结束问答历史不混入这些统计字段；原有模型结束 JSON 继续只有三个业务字段。
+当前统计基础 Token 数量，尚未计算货币费用或设置全任务 Token 上限。网页与 JSON 追踪摘要的展示字段维持原有范围。
 
 ## 会话行为
 
@@ -337,7 +361,7 @@ node .\check_session_page.cjs
 
 上述耗时仅是一次真实请求的样例，不是平均响应时间或独立评测指标。
 SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实样例使用 JSON 接口。
-真实 Token 用量与全任务预算仍待后续补充。
+全任务预算仍待后续补充。
 
 ## 模型与工具耗时验证
 
@@ -371,6 +395,35 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 本次模型调用合计 3137.003 毫秒，占总耗时约 98.97%；工具合计 1.089 毫秒。
 模型分项包含网络和服务等待，不能据此单独拆出推理时间或网络时间；其余开销为差值，没有进一步测量各项占比。
 上述数据仅对应本次真实请求，不是平均响应时间或版本性能对比；第二版完整业务题集评测仍待进行。
+
+## Token 用量验证
+
+在已有开发依赖环境中执行以下检查。它们使用预设数据、HTTP 响应或工具，不调用真实模型；请求适配检查会替换环境读取函数，不读取真实 API Key：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 usage_models.py
+.\venv\Scripts\python.exe -X utf8 check_model_usage.py
+.\venv\Scripts\python.exe -X utf8 check_usage_summary.py
+.\venv\Scripts\python.exe -X utf8 check_agent_events.py
+.\venv\Scripts\python.exe -X utf8 check_agent_completion.py
+```
+
+检查覆盖格式与总数校验、未知值和明确零值、服务响应提取、记录隔离、纠错调用的保留、预算耗尽不虚增调用、完整与缺失用量的汇总，以及正式结果和 SQLite 检查点保存。
+335／575 个 Token 等数字为检查中的预设值。
+
+2026-11-17，真实 `POST /analyze` 请求“已支付订单共有多少笔？”的核验记录如下。追踪编号为 `trace_067e4db142e5491ab65b9c24a679f45b`；业务状态为 `completed`，SQL 返回 4 笔已支付订单、结果未截断，最终证据与本轮查询编号一致。
+
+| 模型调用轮次 | 输入 Token | 输出 Token | 总 Token |
+| --- | ---: | ---: | ---: |
+| 1 | 1068 | 26 | 1094 |
+| 2 | 1295 | 68 | 1363 |
+| 3 | 1429 | 64 | 1493 |
+| 4 | 1561 | 56 | 1617 |
+| 合计 | 5353 | 214 | 5567 |
+
+`usage_summary` 的 `model_call_count=4`、`usage_call_count=4`、`complete=true`；三个汇总计数与逐轮相加一致。
+本次服务端总耗时为 3825.884 毫秒。
+这是一条真实 JSON 请求的功能验收记录，不代表平均用量、费用或完整业务题集评测结果。
 
 ## 固定任务评测
 

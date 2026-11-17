@@ -63,7 +63,7 @@ def execute(*, history=None, repair=False, max_rounds=6, terminal="completed"):
 
 
 def assert_durations(state, durations):
-    expected = [{"round": index + 1, "duration_ms": value}
+    expected = [{"round": index + 1, "duration_ms": value, "usage": None}
                 for index, value in enumerate(durations)]
     assert state["model_calls"] == expected
     assert state["final_result"]["model_calls"] == expected

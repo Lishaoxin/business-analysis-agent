@@ -1,6 +1,6 @@
 from copy import deepcopy
 from typing import TypedDict
-
+from usage_models import summarize_usage
 
 class AgentState(TypedDict):
     question: str
@@ -89,6 +89,7 @@ def finish_turn(state: AgentState, conclusion: dict):
             "steps": state["steps"],
             "charts": state["charts"],
             "model_calls": state["model_calls"],
+            "usage_summary": summarize_usage(state["model_calls"]),
         },
     }
 

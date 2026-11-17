@@ -81,7 +81,11 @@ def request_model(messages):
         timeout=(10, 60),
     )
     response.raise_for_status()
-    return response.json()["choices"][0]["message"]
+    data = response.json()
+    return {
+        "message": data["choices"][0]["message"],
+        "usage": data.get("usage"),
+    }
 
 def execute_tool(tool_name, arguments, query_store=None):
     if tool_name not in TOOL_FUNCTIONS:

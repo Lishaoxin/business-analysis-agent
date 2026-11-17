@@ -130,10 +130,15 @@ def main():
 
     plain = run_offline("旧方式调用", [])
     assert set(plain) == {
-        "status", "answer", "evidence_query_ids", "model_calls", "steps", "charts"
+        "status", "answer", "evidence_query_ids", "model_calls", "steps", "charts",
+        "usage_summary",
     }
     assert [item["round"] for item in plain["model_calls"]] == [1, 2]
     assert all(item["duration_ms"] >= 0 for item in plain["model_calls"])
+    assert plain["usage_summary"] == {
+        "model_call_count": 2, "usage_call_count": 0, "complete": False,
+        "prompt_tokens": None, "completion_tokens": None, "total_tokens": None,
+    }
     assert plain["status"] == "completed"
     assert len(plain["steps"]) == 1
     print("不传on_event时，原有独立调用和返回字段保持可用")
@@ -164,6 +169,8 @@ def main():
         assert len(saved["history"]) == 4
         assert saved["rounds"] == 2
         assert saved["model_calls"] == second["model_calls"]
+        assert saved["final_result"]["usage_summary"] == second["usage_summary"]
+        assert second["usage_summary"]["model_call_count"] == 2
         assert [item["round"] for item in saved["model_calls"]] == [1, 2]
         assert list(saved["query_results"]) == second["evidence_query_ids"]
         print("会话入口也能收集事件，两次任务的接收列表相互隔离")
