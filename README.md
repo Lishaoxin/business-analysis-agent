@@ -2,7 +2,7 @@
 
 基于 SQLite、DeepSeek Tool Calling、LangGraph 和 FastAPI 的业务数据分析项目，使用模拟电商数据。
 用户用自然语言提出问题，模型选择工具和参数，Python 执行受控查询或绘图，再将结果回传模型生成回答。
-网页可展示回答、工具调用记录和柱状图。
+网页支持连续追问、缺失条件澄清，并展示回答、工具调用记录和柱状图。
 
 ## 版本与验证范围
 
@@ -10,7 +10,9 @@
 - 第二版开发中：已加入 Pydantic 统一工具参数校验和任务内查询结果存储。模型向绘图工具传入 query_id，执行层取回对应数据，绘图函数直接使用该结果。
 - 已加入任务结束状态与证据检查：区分 completed、needs_clarification、failed；对需要查询的完成结果，检查引用编号是否存在、结果是否被截断。
 - 执行流程已迁移为 LangGraph 的 model、tools、validate 三个节点，支持条件路由、任务内查询快照传递与模型调用次数限制。
-- LangGraph 迁移已通过离线回归检查和一次真实模型类别销售额绘图验收。当前每次请求创建独立任务状态，会话记忆与持久化将在后续接入。
+- LangGraph 迁移已通过离线回归检查和一次真实模型类别销售额绘图验收。
+- 网页与 API 已接入 thread_id 和 SQLite checkpointer，支持同编号连续追问、服务重启后恢复历史、新会话隔离，以及澄清后补充条件继续完成任务。
+- 会话能力已通过离线检查和真实模型功能验收，详见下方验证记录。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
@@ -18,14 +20,18 @@
 ```mermaid
 flowchart TD
     U["网页输入问题"] --> H["FastAPI：POST /analyze"]
-    H --> A["run_agent → run_graph_agent"]
-    C["CLI 输入问题"] --> A
-    A --> M["model：检查预算并请求模型"]
+    H --> S["复用或生成 thread_id"]
+    S --> A["run_agent → run_session_agent"]
+    A --> N["读取会话历史，重建本轮 State"]
+    C["CLI 输入问题"] --> I["run_agent → run_graph_agent"]
+    I --> N0["初始化独立 State"]
+    N --> M["model：检查预算并请求模型"]
+    N0 --> M
     M -->|工具请求| T["tools：执行工具并保存查询快照"]
     T --> M
     M -->|结束JSON| V["validate：检查结束信息与引用"]
     V -->|需要修正| M
-    V -->|通过| R["返回状态、回答、引用编号、工具记录与图表"]
+    V -->|通过| R["记录本轮结束问答，返回回答、证据与产物"]
     M -->|预算耗尽，返回failed| R
     R --> D["网页展示或 CLI 输出"]
 ```
@@ -33,6 +39,8 @@ flowchart TD
 - `get_schema`：读取三张业务表的真实建表语句。
 - `run_sql`：执行以 SELECT 开头的单条查询，返回列名、数据和截断标记。
 - `draw_chart`：根据两列查询结果生成柱状图。
+
+会话模式使用 `SqliteSaver` 将图状态保存到 `sessions.db`。每个新问题只继承已结束问答，轮数、工具记录、查询缓存、图表和最终结果按本轮重新初始化。
 
 工具使用 SQLite 只读连接、表和函数白名单。查询结果最多预览 100 行，并通过 SQLite 执行进度回调检查约 2 秒的查询预算。
 每次任务最多进行 6 轮模型请求；可修复的工具错误会反馈给模型尝试修正。
@@ -59,13 +67,14 @@ flowchart TD
 | [tools.py](tools.py) | 数据结构、只读 SQL 和绘图工具 |
 | [agent.py](agent.py) | 模型请求、工具分发、图执行入口与 CLI |
 | [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由与调用次数限制 |
-| [agent_state.py](agent_state.py) | 任务状态字段与初始化 |
+| [agent_state.py](agent_state.py) | 任务状态、历史问答初始化与本轮结束记录 |
+| [session_runner.py](session_runner.py) | 按会话编号恢复历史、SQLite 持久化与同会话请求冲突保护 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
 | [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 校验快照、恢复独立评测库、采集结果 |
 | [summarize_eval.py](summarize_eval.py) | 合并审核结论并生成汇总 |
-| [requirements.txt](requirements.txt)、[.env.example](.env.example) | 直接依赖版本与配置模板 |
+| [requirements.txt](requirements.txt)、[requirements-dev.txt](requirements-dev.txt)、[.env.example](.env.example) | 运行依赖、开发检查依赖与配置模板 |
 
 ## 本地启动
 
@@ -118,6 +127,8 @@ DEEPSEEK_API_KEY=your_api_key_here
 .\venv\Scripts\python.exe -X utf8 agent.py
 ```
 
+CLI 当前执行单次独立任务；网页与 API 通过 `thread_id` 支持连续会话。
+
 示例问题：
 
 - 已支付订单共有多少笔？
@@ -134,16 +145,68 @@ DEEPSEEK_API_KEY=your_api_key_here
 
 ## 接口
 
-`POST /analyze` 接收 JSON：
+`POST /analyze` 接收 JSON，`question` 必填，`thread_id` 可选。
+下例用自定义编号开始一个会话：
 
 ```json
-{"question": "已支付订单共有多少笔？"}
+{"question": "2026年9月的已支付销售额是多少元？", "thread_id": "demo-A"}
 ```
 
-返回 `status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`steps`（工具调用及反馈）、`charts`（图表）。
-`completed` 表示结束信息与引用检查通过，业务答案仍需核验。
+继续追问时沿用同一编号：
+
+```json
+{"question": "那10月份呢？", "thread_id": "demo-A"}
+```
+
+不传 `thread_id` 或传 `null` 时，API 会生成新编号；响应返回本次实际使用的 `thread_id`，后续追问需要传回该编号。
+编号去除首尾空格后须为 1—128 个字符。请求拒绝错误类型及多余字段。
+
+响应包含 `thread_id`（会话编号）、`status`（任务状态）、`answer`（回答）、`evidence_query_ids`（引用查询编号）、`steps`（工具调用及反馈）、`charts`（图表）。
+`completed` 表示结束信息与引用检查通过，业务答案仍需核验；`needs_clarification` 表示需要补充条件；`failed` 表示本轮未能完成。
+HTTP 200 与业务完成状态分别判断。
+
+同一服务进程中，同编号的重叠请求返回 HTTP 409；模型请求超时返回 504，模型服务请求失败返回 502。
 HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘路径。
 图片由 `GET /outputs/文件名.png` 读取已有文件。
+
+## 会话行为
+
+- 网页自动保存并传递会话编号，“新会话”生成新编号。
+- 浏览器 `sessionStorage` 只保存编号；同一标签页刷新后可继续当前会话。页面暂时只显示本次打开后的问答，没有历史会话列表。
+- 后端通过同一 `thread_id` 读取 SQLite 中的历史。服务重启后，使用原编号可以继续会话；换编号会读取另一个会话。
+- 记录已结束的用户问题与最终回答，包括澄清和失败说明；临时无效回答与纠错反馈不作为后续问答历史。
+- 历史用于理解省略与指代；统计值在本轮重新查询，上一轮的 `query_id` 不能直接用于本轮取数、绘图或结束引用。
+- 缺少指代范围时提示模型先澄清；用户补充月份后，结合本会话原请求继续分析。该规则通过模型指令引导，结束校验仍负责格式、编号归属与截断检查，业务语义需要核验。
+- 同会话请求冲突保护限于单个服务进程，尚未实现多 worker 间的请求协调。
+
+`sessions.db` 与其伴随文件由 `.gitignore` 排除。评测和默认 CLI 调用不传 `thread_id`，每题保持独立任务，不读取业务会话历史。
+
+## 会话功能验证
+
+下面命令用于在新环境复现离线检查。检查使用预设模型响应，持久化检查使用临时数据库，不调用真实模型：
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r .\requirements-dev.txt
+.\venv\Scripts\python.exe -X utf8 check_turn_history.py
+.\venv\Scripts\python.exe -X utf8 check_session_memory.py
+.\venv\Scripts\python.exe -X utf8 check_session_api.py
+node .\check_session_page.cjs
+```
+
+最后一项需要 Node.js，使用内置模块执行网页脚本的逻辑检查；运行 Python 后端不需要 Node.js。
+离线检查覆盖历史传递、两个独立进程恢复同会话、不同编号隔离、异常后的历史保留、同编号请求冲突、无编号独立调用，以及网页编号与状态显示。
+网页逻辑检查使用模拟 DOM，不代替真实浏览器验收。
+
+2026-11-17，已在真实网页和模型上完成以下功能验收：
+
+| 场景 | 本次观察结果 |
+| --- | --- |
+| 连续追问 | 先问九月已支付销售额，再问“那十月份呢”；分别重新查询得到 1400 元、1700 元 |
+| 服务重启恢复 | 使用原会话编号，恢复九月、十月历史；本轮限定这两个月重新查询，合计 3100 元 |
+| 新会话隔离与澄清 | 新编号没有旧月份信息，返回 needs_clarification，没有查询销售额或猜测月份 |
+| 补充条件继续完成 | 同一会话补充“2026年9月和10月。”后，恢复原统计要求并重新查询，返回 completed 和本轮证据编号 |
+
+上述记录用于验证会话行为；下方十题评测结果仍对应第一版基线，第二版完整业务题集评测另行进行。
 
 ## 固定任务评测
 

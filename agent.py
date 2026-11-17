@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from tools import get_schema, run_sql, draw_chart
 from tool_models import TOOL_ARGUMENT_MODELS
 from graph_agent import run_graph_agent
+from session_runner import run_session_agent
 
 MODEL_NAME = "deepseek-flash"
 
@@ -126,9 +127,19 @@ def call_tool(tool_name, raw_arguments, query_store=None):
             "error": str(exc),
         }
 
-def run_agent(question, max_rounds=6, requires_query=True):
-    return run_graph_agent(
+def run_agent(question, max_rounds=6, requires_query=True, thread_id=None):
+    if thread_id is None:
+        return run_graph_agent(
+            question,
+            request_model=request_model,
+            call_tool=call_tool,
+            max_rounds=max_rounds,
+            requires_query=requires_query,
+        )
+
+    return run_session_agent(
         question,
+        thread_id,
         request_model=request_model,
         call_tool=call_tool,
         max_rounds=max_rounds,

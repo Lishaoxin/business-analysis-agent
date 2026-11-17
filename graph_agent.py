@@ -2,7 +2,7 @@ import json
 
 from langgraph.graph import END, START, StateGraph
 
-from agent_state import AgentState, create_initial_state
+from agent_state import AgentState, create_initial_state, finish_turn
 from completion_checks import validate_conclusion
 from query_store import QueryStore
 
@@ -22,22 +22,18 @@ def route_after_validation(state: AgentState):
 
 
 # 两个参数接收agent.py中的函数，节点执行时才调用它们。
-def build_agent_graph(request_model, call_tool):
+def build_agent_graph(request_model, call_tool, checkpointer=None):
     # 模型节点先检查请求预算，再保存模型响应和新的调用次数。
     def model_node(state: AgentState):
         if state["rounds"] >= state["max_rounds"]:
-            return {
-                "final_result": {
-                    "status": "failed",
-                    "answer": (
-                        f"已达到{state['max_rounds']}轮请求上限，"
-                        "未能生成通过校验的结束信息。"
-                    ),
-                    "evidence_query_ids": [],
-                    "steps": state["steps"],
-                    "charts": state["charts"],
-                },
-            }
+            return finish_turn(state, {
+                "status": "failed",
+                "answer": (
+                    f"已达到{state['max_rounds']}轮请求上限，"
+                    "未能生成通过校验的结束信息。"
+                ),
+                "evidence_query_ids": [],
+            })
 
         message = request_model(state["messages"])
         rounds = state["rounds"] + 1
@@ -133,13 +129,7 @@ def build_agent_graph(request_model, call_tool):
             ]
             return {"messages": messages}
 
-        return {
-            "final_result": {
-                **conclusion,
-                "steps": state["steps"],
-                "charts": state["charts"],
-            },
-        }
+        return finish_turn(state, conclusion)
 
     # 构图阶段只注册节点和路由，不请求模型或执行SQL。
     builder = StateGraph(AgentState)
@@ -154,7 +144,7 @@ def build_agent_graph(request_model, call_tool):
     builder.add_conditional_edges(
         "validate", route_after_validation, ["model", END]
     )
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)
 
 
 def run_graph_agent(

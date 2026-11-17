@@ -4,3 +4,5 @@ __pycache__/
 business.db
 business.db-*
 outputs/
+sessions.db
+sessions.db-*

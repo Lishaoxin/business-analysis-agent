@@ -5,3 +5,4 @@ python-dotenv==1.2.4
 requests==2.34.2
 uvicorn==0.54.0
 langgraph==1.2.22
+langgraph-checkpoint-sqlite==3.1.3

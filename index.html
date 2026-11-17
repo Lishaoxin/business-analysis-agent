@@ -9,6 +9,8 @@
         textarea { display: block; box-sizing: border-box; width: 100%; margin: 12px 0; font: inherit; }
         button { padding: 8px 18px; }
         pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; }
+        .turn { border-bottom: 1px solid #ddd; padding: 4px 0 16px; margin-bottom: 16px; }
+        .hint { color: #555; font-size: 14px; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -16,30 +18,75 @@
     <form id="analysis-form">
         <label for="question">请输入分析问题</label>
         <textarea id="question" rows="4" required
-            placeholder="例如：已支付订单有多少笔？"></textarea>
-        <button id="submit-button" type="submit">开始分析</button>
+            placeholder="例如：2026年9月的已支付销售额是多少元？"></textarea>
+        <button id="submit-button" type="submit">发送问题</button>
+        <button id="new-session-button" type="button">新会话</button>
     </form>
-    <p id="status" role="status"></p>
-    <h2>分析回答</h2>
-    <pre id="answer"></pre>
+    <p id="status" role="status">可以连续追问，点击“新会话”可重新开始。</p>
+    <p class="hint">刷新页面后仍可继续当前会话；下方仅显示本次打开页面后的问答。</p>
 
-    <h2>工具调用记录</h2>
+    <h2>对话记录</h2>
+    <div id="conversation"></div>
+
+    <h2>本轮工具调用记录</h2>
     <div id="steps"></div>
 
-    <h2>图表</h2>
+    <h2>本轮图表</h2>
     <div id="charts"></div>
 
     <script>
         const form = document.getElementById("analysis-form");
         const questionInput = document.getElementById("question");
         const button = document.getElementById("submit-button");
+        const newSessionButton = document.getElementById("new-session-button");
         const statusText = document.getElementById("status");
-        const answer = document.getElementById("answer");
+        const conversation = document.getElementById("conversation");
         const steps = document.getElementById("steps");
         const charts = document.getElementById("charts");
 
+        // 页面负责保存会话编号；真正的问答历史由后端保存。
+        const SESSION_KEY = "business-agent-thread-id";
+        let threadId = sessionStorage.getItem(SESSION_KEY) || crypto.randomUUID();
+        sessionStorage.setItem(SESSION_KEY, threadId);
+        let busy = false;
+
+        function setBusy(value) {
+            busy = value;
+            button.disabled = value;
+            newSessionButton.disabled = value;
+            questionInput.disabled = value;
+        }
+
+        function appendTurn(question, answerText) {
+            const turn = document.createElement("section");
+            turn.className = "turn";
+
+            const heading = document.createElement("h3");
+            heading.textContent = "问题：" + question;
+            const answer = document.createElement("pre");
+            answer.textContent = answerText;
+
+            turn.appendChild(heading);
+            turn.appendChild(answer);
+            conversation.appendChild(turn);
+        }
+
+        newSessionButton.addEventListener("click", () => {
+            if (busy) return;
+
+            threadId = crypto.randomUUID();
+            sessionStorage.setItem(SESSION_KEY, threadId);
+            conversation.replaceChildren();
+            steps.replaceChildren();
+            charts.replaceChildren();
+            questionInput.value = "";
+            statusText.textContent = "已开始新会话，请输入问题。";
+            questionInput.focus();
+        });
+
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
+            if (busy) return;
 
             const question = questionInput.value.trim();
             if (!question) {
@@ -47,9 +94,8 @@
                 return;
             }
 
-            button.disabled = true;
+            setBusy(true);
             statusText.textContent = "正在分析，请稍候……";
-            answer.textContent = "";
             steps.replaceChildren();
             charts.replaceChildren();
 
@@ -57,7 +103,7 @@
                 const response = await fetch("/analyze", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: question })
+                    body: JSON.stringify({ question: question, thread_id: threadId })
                 });
 
                 const data = await response.json();
@@ -67,7 +113,9 @@
                     throw new Error(detail);
                 }
 
-                answer.textContent = data.answer;
+                threadId = data.thread_id;
+                sessionStorage.setItem(SESSION_KEY, threadId);
+                appendTurn(question, data.answer);
 
                 if (data.steps.length === 0) {
                     steps.textContent = "本次分析未调用工具";
@@ -98,11 +146,18 @@
                     charts.appendChild(image);
                 }
 
-                statusText.textContent = "分析完成";
+                const statusLabels = {
+                    completed: "分析完成",
+                    needs_clarification: "需要补充信息",
+                    failed: "本次分析未完成"
+                };
+                statusText.textContent = statusLabels[data.status] || "已收到回答";
+                questionInput.value = "";
             } catch (error) {
-                statusText.textContent = "分析失败：" + error.message;
+                statusText.textContent = "请求失败：" + error.message;
             } finally {
-                button.disabled = false;
+                setBusy(false);
+                questionInput.focus();
             }
         });
     </script>

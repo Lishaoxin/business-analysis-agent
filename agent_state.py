@@ -1,8 +1,10 @@
+from copy import deepcopy
 from typing import TypedDict
 
 
 class AgentState(TypedDict):
     question: str
+    history: list[dict]
     messages: list[dict]
     model_message: dict | None
     steps: list[dict]
@@ -14,15 +16,26 @@ class AgentState(TypedDict):
     final_result: dict | None
 
 
-def create_initial_state(question, max_rounds=6, requires_query=True) -> AgentState:
+def create_initial_state(
+    question, max_rounds=6, requires_query=True, history=None
+) -> AgentState:
     if not isinstance(question, str) or not question.strip():
         raise ValueError("问题必须是非空字符串")
+
+    if history is None:
+        history = []
+    history = deepcopy(history)
 
     messages = [
         {
             "role": "system",
             "content": (
                 "你是业务数据分析助手，请用中文回答。"
+                "历史问答用于理解本轮问题的省略和指代。"
+                "遇到“刚才”“那两个月”等指代，必须从当前会话历史中确认具体范围。"
+                "如果历史中没有明确对应范围，应使用needs_clarification询问缺失条件。"
+                "不得根据数据库只有哪些月份，或查询全库后看到的月份，猜测用户指代。"
+                "本轮统计必须重新查询，不得引用历史任务的查询编号。"
                 "编写或修正SQL前，先通过get_schema确认真实表结构。"
                 "统计数值必须来自run_sql；金额以分存储，展示时转为元。"
                 "需要绘图时，先用run_sql取得合适的数据，再把其成功反馈中的query_id交给draw_chart。"
@@ -46,8 +59,11 @@ def create_initial_state(question, max_rounds=6, requires_query=True) -> AgentSt
         },
     ]
 
+    messages = [messages[0]] + deepcopy(history) + [messages[1]]
+
     return {
         "question": question.strip(),
+        "history": history,
         "messages": messages,
         "model_message": None,
         "steps": [],
@@ -57,6 +73,20 @@ def create_initial_state(question, max_rounds=6, requires_query=True) -> AgentSt
         "requires_query": requires_query,
         "query_results": {},
         "final_result": None,
+    }
+
+
+def finish_turn(state: AgentState, conclusion: dict):
+    return {
+        "history": state["history"] + [
+            {"role": "user", "content": state["question"]},
+            {"role": "assistant", "content": conclusion["answer"]},
+        ],
+        "final_result": {
+            **conclusion,
+            "steps": state["steps"],
+            "charts": state["charts"],
+        },
     }
 
 
