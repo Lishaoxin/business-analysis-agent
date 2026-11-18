@@ -1,0 +1,76 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先确认一下表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_G9PUjH4Xibv5xXRGStG52886",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_WsE64LxOctVWFuIiq8Y19571",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT oi.order_id, oi.product_id, p.product_name, oi.quantity, oi.unit_price_cents, oi.quantity * oi.unit_price_cents AS amount_cents, o.status FROM order_items oi JOIN products p ON p.product_id = oi.product_id JOIN orders o ON o.order_id = oi.order_id WHERE oi.order_id = ? AND oi.product_id = ?\", \"params\": [\"V2O0002\", \"P001\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "product_id",
+      "product_name",
+      "quantity",
+      "unit_price_cents",
+      "amount_cents",
+      "status"
+    ],
+    "rows": [
+      [
+        "V2O0002",
+        "P001",
+        "机械键盘",
+        2,
+        27900,
+        55800,
+        "paid"
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_644397aae7c24f9b8769dce9f41418f0"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"订单 V2O0002 中商品 P001（机械键盘）购买了 2 件；实际成交单价为 279.00 元/件，明细金额（2 × 279.00）为 558.00 元。该订单状态为 paid（已支付）。\",\"evidence_query_ids\":[\"query_644397aae7c24f9b8769dce9f41418f0\"]}"
+}

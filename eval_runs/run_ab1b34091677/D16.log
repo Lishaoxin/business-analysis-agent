@@ -1,0 +1,78 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先查看数据库表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_GvyS9jOqsebhqrTR6hXj5281",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_YIL6iwn6SaSehBzyIhdr5790",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.order_id, o.status, COUNT(i.item_id) AS item_count, SUM(i.quantity * i.unit_price_cents) AS total_cents, ROUND(SUM(i.quantity * i.unit_price_cents) / 100.0, 2) AS total_yuan FROM orders o LEFT JOIN order_items i ON i.order_id = o.order_id WHERE o.order_id = ? GROUP BY o.order_id, o.status\", \"params\": [\"V2O0001\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "status",
+      "item_count",
+      "total_cents",
+      "total_yuan"
+    ],
+    "rows": [
+      [
+        "V2O0001",
+        "paid",
+        2,
+        49700,
+        497.0
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_69cb98176a20439280046cb9b9b72536"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "订单 V2O0001（状态：paid）共有 2 条明细，明细金额合计为 497.00 元，即 49,700 分。\n\n{\"status\":\"completed\",\"answer\":\"订单 V2O0001（状态：paid）共有 2 条明细，明细金额合计为 497.00 元，即 49,700 分。计算依据为每行明细的“数量 × 单价（分）”求和，未包含订单层面的运费、优惠等信息。\",\"evidence_query_ids\":[\"query_69cb98176a20439280046cb9b9b72536\"]}"
+}
+结束信息校验失败： Expecting value: line 1 column 1 (char 0)
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"订单 V2O0001（状态：paid）共有 2 条明细，明细金额合计为 497.00 元（49,700 分）。计算方式为各明细“数量 × 单价”求和，未考虑订单层面的运费与优惠。\",\"evidence_query_ids\":[\"query_69cb98176a20439280046cb9b9b72536\"]}"
+}

@@ -1,0 +1,103 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先查看表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_TyeCzeZR0WA9zwQHjzou9077",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_bBOuIljMOWqcYFqAb2wq0617",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT strftime('%Y-%m', o.order_date) AS ym, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ? GROUP BY ym ORDER BY ym\", \"params\": [\"2026-01-01\", \"2026-03-01\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "ym",
+      "amt_cents"
+    ],
+    "rows": [
+      [
+        "2026-01",
+        53962825
+      ],
+      [
+        "2026-02",
+        53035535
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_eab2c9dc3ddc450c986c600000e2faa6"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_4LLOFLULxDAPaZulWwIj3080",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"2026-01-01\", \"2026-03-01\"], \"sql\": \"SELECT ROUND((SUM(CASE WHEN strftime('%Y-%m', o.order_date) = '2026-02' THEN oi.quantity * oi.unit_price_cents ELSE 0 END) - SUM(CASE WHEN strftime('%Y-%m', o.order_date) = '2026-01' THEN oi.quantity * oi.unit_price_cents ELSE 0 END)) * 100.0 / SUM(CASE WHEN strftime('%Y-%m', o.order_date) = '2026-01' THEN oi.quantity * oi.unit_price_cents ELSE 0 END), 2) AS growth_pct FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "growth_pct"
+    ],
+    "rows": [
+      [
+        -1.72
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_2458c53d667a4aca8f4e622899d01fba"
+  }
+}
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"以2026年1月为基期，2026年2月已支付（paid）销售额为530,355.35元，1月为539,628.25元；2月相比1月下降1.72%（即增长率为-1.72%），并未增长。\",\"evidence_query_ids\":[\"query_eab2c9dc3ddc450c986c600000e2faa6\",\"query_2458c53d667a4aca8f4e622899d01fba\"]}"
+}

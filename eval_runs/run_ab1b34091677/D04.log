@@ -1,0 +1,68 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先确认表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_WGQAybkKx5UrVYJubGwk1941",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_N6g6t4QaWZFfYHqjKEML0889",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.status, COUNT(DISTINCT o.order_id) AS order_cnt, SUM(i.quantity * i.unit_price_cents) AS total_cents FROM orders o JOIN order_items i ON i.order_id = o.order_id WHERE o.status = 'cancelled' GROUP BY o.status\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "status",
+      "order_cnt",
+      "total_cents"
+    ],
+    "rows": [
+      [
+        "cancelled",
+        200,
+        83258545
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_de21ec614f0a4188b4dbea291aad5c1b"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"已取消订单共 200 笔，其订单明细金额合计为 83,258,545 分，即 832,585.45 元（按各明细的数量×单价汇总，未考虑税与优惠）。\",\"evidence_query_ids\":[\"query_de21ec614f0a4188b4dbea291aad5c1b\"]}"
+}

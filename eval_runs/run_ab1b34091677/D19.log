@@ -1,0 +1,156 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先获取表结构，再查询订单信息。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_bL6L7eAR3ugopTMBhBh03527",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_Q4KHMglsGN2IOvDwRlTU5087",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.order_id, o.status, sum(i.quantity * i.unit_price_cents) AS amount_cents, count(i.item_id) AS item_rows FROM orders o LEFT JOIN order_items i ON o.order_id = i.order_id WHERE o.order_id = ? GROUP BY o.order_id, o.status\", \"params\": [\"V2O0004\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "status",
+      "amount_cents",
+      "item_rows"
+    ],
+    "rows": [
+      [
+        "V2O0004",
+        "paid",
+        0,
+        1
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_5a1ced40b30343a796f0f0035e485290"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_xINRIqWgHAMUCNxv7cXe9793",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"V2O0004\"], \"sql\": \"SELECT order_id, product_id, quantity, unit_price_cents FROM order_items WHERE order_id = ?\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "product_id",
+      "quantity",
+      "unit_price_cents"
+    ],
+    "rows": [
+      [
+        "V2O0004",
+        "P011",
+        1,
+        0
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_f37df80a28744972baf555f0f3a7045d"
+  }
+}
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "订单 V2O0004 的状态是 **paid（已支付）**。该订单有 1 条明细记录（商品 P011，数量 1，单价 0 分），明细金额合计为 **0.00 元**。\n\n{\"status\":\"completed\",\"answer\":\"订单 V2O0004 的状态是 paid（已支付）。该订单有 1 条明细记录（商品 P011，数量 1，单价 0 分），明细金额合计为 0.00 元。\",\"evidence_query_ids\":[\"query_5a1ced40b30343a796f0f0035e485290\",\"query_f37df80a28744972baf555f0f3a7045d\"]}"
+}
+结束信息校验失败： Expecting value: line 1 column 1 (char 0)
+第 5 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_iYwkdEEkF8GHLIQL9mDU4355",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"V2O0004\"], \"sql\": \"SELECT o.order_id AS 订单号, o.status AS 订单状态, count(i.item_id) AS 明细条数, sum(i.quantity * i.unit_price_cents) AS 明细金额合计_分, round(coalesce(sum(i.quantity * i.unit_price_cents), 0) / 100.0, 2) AS 明细金额合计_元 FROM orders o LEFT JOIN order_items i ON o.order_id = i.order_id WHERE o.order_id = ? GROUP BY o.order_id, o.status\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "订单号",
+      "订单状态",
+      "明细条数",
+      "明细金额合计_分",
+      "明细金额合计_元"
+    ],
+    "rows": [
+      [
+        "V2O0004",
+        "paid",
+        1,
+        0,
+        0.0
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_ecf1657dacf74f4bbca6465da5907531"
+  }
+}
+第 6 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"订单 V2O0004 的状态是 paid（已支付）。该订单共有 1 条明细记录，明细金额合计为 0 分，即 0.00 元（该明细商品 P011 数量 1，单价为 0 分）。\",\"evidence_query_ids\":[\"query_ecf1657dacf74f4bbca6465da5907531\",\"query_f37df80a28744972baf555f0f3a7045d\"]}"
+}
