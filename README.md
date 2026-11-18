@@ -22,7 +22,8 @@
 - 已接入每问默认 30 秒的时间预算，在模型、工具和结束校验边界检查；超限时保留已有记录并返回 failed，已完成离线检查和真实正常路径验收。
 - 评测报告已记录核心代码清单、运行环境和明确的执行上限；审核时检查实际业务状态是否符合题目预期，已通过离线检查。
 - 已准备第二版固定快照（1000 笔订单、12 种商品、2481 条明细）和 20 道开发题，标准答案与参考查询、输入选择和报告记录已通过离线检查。
-- 第二版开发集已完成一次真实采集和逐题核验：20/20，平均单题耗时 5.296 秒，模型请求共 75 次；报告、审核依据、日志与图片见下方归档。保留题集另行验收。
+- 第二版开发集已完成一次真实采集和逐题核验：20/20，平均单题耗时 5.296 秒，模型请求共 75 次；报告、审核依据、日志与图片见下方归档。
+- 已准备单独的 20 道保留题（18 道查询、2 道澄清），登记 `v2-test` 入口，并通过离线准备检查；12 个 Agent 核心文件与冻结版本一致，真实保留集成绩待采集。
 
 ## 执行链路
 
@@ -95,6 +96,7 @@ flowchart TD
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 第一版固定快照、10 个任务和标准结果 |
 | [eval_fixture_v2.json](eval_fixture_v2.json)、[eval_cases_v2_dev.json](eval_cases_v2_dev.json) | 第二版固定快照、20 道开发题及本地标准答案与参考查询 |
+| [eval_cases_v2_test.json](eval_cases_v2_test.json)、[check_eval_holdout.py](check_eval_holdout.py) | 20 道保留题、冻结核心指纹、标准答案与澄清审核要点的离线检查 |
 | [build_eval_fixture_v2.py](build_eval_fixture_v2.py) | 按固定种子和规则生成第二版快照 |
 | [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 选择成对输入、校验快照、恢复独立评测库、采集结果与报告元数据 |
 | [eval_manifest.py](eval_manifest.py) | 记录评测核心代码、采集与审核脚本、依赖声明的指纹 |
@@ -497,6 +499,7 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 | --- | --- | --- | --- |
 | `v1`（默认） | [eval_fixture_v1.json](eval_fixture_v1.json) | [eval_cases_v1.json](eval_cases_v1.json) | 6 笔订单、3 种商品、9 条明细、10 题，`split=legacy` |
 | `v2-dev` | [eval_fixture_v2.json](eval_fixture_v2.json) | [eval_cases_v2_dev.json](eval_cases_v2_dev.json) | 1000 笔订单、12 种商品、2481 条明细、20 道开发题，`split=development` |
+| `v2-test` | [eval_fixture_v2.json](eval_fixture_v2.json) | [eval_cases_v2_test.json](eval_cases_v2_test.json) | 同一第二版快照、20 道保留题，`split=holdout` |
 
 第二版数据由 `build_eval_fixture_v2.py` 使用固定种子 `20261118` 生成，覆盖 2026 年 1—6 月、4 个地区和 4 类商品，含 800 笔已支付订单与 200 笔取消订单。
 数据保留了同商品不同成交价、零金额明细、未售出商品、月份边界和无订单月份。
@@ -521,7 +524,7 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 
 代码指纹按 UTF-8 文本计算，统一 BOM 和换行；修改代码文本或依赖声明会改变指纹，必需文件缺失时直接报错。
 原有 `agent_code_sha256`、`tools_code_sha256` 字段继续保留。
-报告结构版本为 2，代码清单格式版本为 1；数据与题集版本由所选输入决定，`v1` 为 1，`v2-dev` 为 2。
+报告结构版本为 2，代码清单格式版本为 1；数据与题集版本由所选输入决定，`v1` 为 1，`v2-dev` 与 `v2-test` 为 2。
 
 第二版准备检查及离线复现命令如下：
 
@@ -540,7 +543,7 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 覆盖固定生成、标准答案、v1／v2 选择与旧默认兼容、错误输入拒绝、报告记录、采集隔离和审核规则。
 检查通过说明评测流程按约定工作，通过率需要完成真实采集和人工审核后统计。
 
-不传 `--suite` 时仍使用 `v1`。不指定 `--case` 时选择当前题集首题：`v1` 为 `E01`，`v2-dev` 为 `D01`；`--case all` 表示所选题集的全部题目。
+不传 `--suite` 时仍使用 `v1`。不指定 `--case` 时选择当前题集首题：`v1` 为 `E01`，`v2-dev` 为 `D01`，`v2-test` 为 `T01`；`--case all` 表示所选题集的全部题目。
 第一版准备检查仍可使用原命令 `eval_agent.py --case all --check-only`。
 
 第二版单题试跑与完整采集命令如下，两条都会调用模型服务：
@@ -553,12 +556,43 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 每批结果保存在新建的 `eval_runs/run_*/` 目录，包括独立数据库、原始报告、逐题日志和生成的图片。
 第一版全题采集仍可使用原命令 `eval_agent.py --case all`。
 
+### 保留题集准备与验收
+
+保留题集 T01—T20 使用同一第二版固定快照，加入季度组合筛选、销量／日期／订单排行、订单级聚合、加权成交价、占比、双维分组、空订单与零基期等场景，以及 2 道缺失条件澄清题。
+它与开发集分别保存，没有重复题号或相同题目文本，衡量的是同一模拟数据上的新问题表现。
+
+`eval_cases_v2_test.json` 的 `frozen_source_revision=a1bc477`，`frozen_runtime_files` 保存冻结时 12 个核心文件的文本指纹，涵盖模型请求、提示词、图流程、工具、参数与结束校验、查询存储、预算、用量和会话等模块。
+`check_eval_holdout.py` 检查这些指纹、固定快照与题集绑定、18 条参考只读查询、2 道澄清题的审核条件，以及开发／保留题的区分。
+评测入口 `eval_data.py` 的题集登记属于采集配置，不在这 12 个核心文件中；新增登记会改变报告的代码总指纹，核心文件仍应与冻结清单一致。
+保留题集指纹前 16 位为 `dfb849382da2e648`。
+
+准备检查不调用模型：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 check_eval_holdout.py
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --suite v2-test --case all --check-only
+```
+
+- 18 道查询题的预期状态为 `completed`，需要核对 SQL 结果、最终答案、当前查询证据，以及 T14 的订单笔数柱状图。
+- T16 应询问年份和月份，T20 应询问地区，两题的预期状态均为 `needs_clarification`。需要核对实际询问内容，不能只凭状态字段判通过。
+- T15 查询不存在的订单，应说明没有找到，不能当作已有的零金额订单；T18 基期金额为零，应说明无法按该公式计算增长率，不能回答为 0%、100% 或无穷大。
+- 标准答案、参考 SQL 与 `review_points` 留在本地用于审核，不传给 Agent；各题独立执行，不读取业务会话历史。
+
+固定题目和源码版本后，使用下列命令采集完整保留集。此命令会调用真实模型 API：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --suite v2-test --case all
+```
+
+保留集成绩按预先定义的状态和审核要点逐题核验，与开发集结果分开记录。目前只完成准备检查，尚无真实保留集成绩。
+保留首轮运行记录；如果后续依据这些题修改提示词或核心逻辑，应说明这批题已参与调试，并另备新的验收题。
+
 ### 审核与汇总新批次
 
 1. 确认原始报告的 `suite_name`、`split` 与本次题集一致；对照每题的 `expected`，核对成功 SQL 结果、最终回答、统计口径和要求的图片。
 2. 在该批次目录创建 `review.json`，格式可参考[已归档审核记录](eval_runs/run_0d6a458fdeda/review.json)。
 3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`。`execution_status=completed` 只表示函数正常返回；`result.status` 才是 Agent 的业务状态。
-4. 新报告中，标记通过必须满足函数正常返回、实际业务状态等于 `expected_status`。`v1` 的 10 题默认预期 `completed`，`v2-dev` 的 20 题显式要求 `completed`；后续澄清或失败类题目可明确指定 `needs_clarification` 或 `failed`。状态匹配后仍需核对答案、SQL 和图表，程序不会自动判定内容正确。
+4. 新报告中，标记通过必须满足函数正常返回、实际业务状态等于 `expected_status`。`v1` 的 10 题默认预期 `completed`，`v2-dev` 的 20 题显式要求 `completed`；`v2-test` 则有 18 题要求 `completed`、2 题要求 `needs_clarification`。状态匹配后仍需核对答案、SQL 和图表，程序不会自动判定内容正确。
 5. `source_report_sha256` 应填写本次原始报告的内容指纹，不能直接沿用其他批次的指纹。
 
 将下方变量替换成终端打印的本次真实报告路径，再计算指纹：
@@ -576,7 +610,7 @@ $reportPath = ".\eval_runs\run_替换为本次目录\report.json"
 
 生成 `report_reviewed.json` 与 `summary.md`。汇总按审核结论统计通过数，“函数正常返回”单独计数，原始运行报告保留。
 第一版归档没有业务状态字段，继续按原人工核验方式读取；已有明确业务状态的记录仍需符合预期。
-发布结果时注明所用题集与用途，第二版开发集成绩和下方第一版归档分别记录。
+发布结果时注明所用题集与用途，第二版开发集、保留集及第一版归档分别记录。
 
 ### 第二版开发集结果
 

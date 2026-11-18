@@ -11,6 +11,7 @@ TABLE_ORDER = ("orders", "products", "order_items")
 EVAL_SUITES = {
     "v1": ("eval_fixture_v1.json", "eval_cases_v1.json", 1, "legacy"),
     "v2-dev": ("eval_fixture_v2.json", "eval_cases_v2_dev.json", 2, "development"),
+    "v2-test": ("eval_fixture_v2.json", "eval_cases_v2_test.json", 2, "holdout"),
 }
 
 

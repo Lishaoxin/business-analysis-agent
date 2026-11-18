@@ -1,0 +1,500 @@
+{
+  "version": 2,
+  "split": "holdout",
+  "dataset_sha256": "f38dfff16bf45ab74b3d378cb25330f57c1dbfb37f8b92233756916308c25856",
+  "frozen_source_revision": "a1bc477",
+  "frozen_runtime_files": {
+    "agent.py": "f2380dfabc5959a2b687b70576cab6077cf40f4207fb6eae947ef0b65e759f49",
+    "graph_agent.py": "d73d2afb9c7f4d7c4d99c33198870ac526533e2da3dfd04561ceec4787253909",
+    "agent_state.py": "e449f26d369f1d633f2b520a1585a6a7d8380abac27a75472632ecaf47caac0d",
+    "tools.py": "224046ebc0d715a9542ac7da208cf33d0199949d25adfdec5854068928057051",
+    "tool_models.py": "8be6e3b4db21568d60e2cd47cde634b0b74de9236cfed75df1d7f2139cc298a0",
+    "result_models.py": "a90eaf0b4dc6bde6d7bd6531585d16c28f8fce3741d889f69efb1191ce0f5e31",
+    "completion_checks.py": "12f12364629b21178ffab61812feefc4a4f990c8a775ac1c9769b5f48def3db6",
+    "query_store.py": "338b96dc6921a92e10e72c5ff42bc7b2d44dcdfe4feff0354888cf85ad7e0038",
+    "usage_models.py": "a43cd30a2e613a81080575414c5c85aa60af12f61ce2324506cfcfc38be9d560",
+    "run_budget.py": "7e6ad4d15714c42141dcd052aaebe4798f5b4badc0d499c9f4e206c05e958a7a",
+    "session_runner.py": "5fbec7b16a899c4db5a4e82b14592e245b039f24fa33d27d2c884d0ffc957d6f",
+    "event_models.py": "7f1488547d0f05c2dc125e783d3e11b0207bfe851f74779104b990d99e412946"
+  },
+  "cases": [
+    {
+      "id": "T01",
+      "question": "2026年第二季度共有多少笔已支付订单，销售额合计多少元？按4月1日含至7月1日不含统计。",
+      "expected_status": "completed",
+      "expected": {
+        "order_count": 399,
+        "sales_yuan": 1547180.55
+      },
+      "reference_sql": "SELECT COUNT(DISTINCT o.order_id) AS order_count, ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<?",
+      "reference_params": [
+        "2026-04-01",
+        "2026-07-01"
+      ]
+    },
+    {
+      "id": "T02",
+      "question": "按全部订单数为分母，已取消订单占比是多少？百分数保留两位小数。",
+      "expected_status": "completed",
+      "expected": {
+        "cancelled_percent": 20.0
+      },
+      "reference_sql": "SELECT ROUND(SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END)*100.0/COUNT(*),2) AS cancelled_percent FROM orders",
+      "reference_params": []
+    },
+    {
+      "id": "T03",
+      "question": "仅看华东地区2026年第二季度，按商品类别统计已支付销售额（元），金额降序，金额相同时类别名称升序。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "显示设备",
+            154868.55
+          ],
+          [
+            "办公设备",
+            135324.3
+          ],
+          [
+            "存储设备",
+            37967.15
+          ],
+          [
+            "电脑配件",
+            36752.05
+          ]
+        ]
+      },
+      "reference_sql": "SELECT p.category, ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id JOIN products p ON p.product_id=i.product_id WHERE o.status='paid' AND o.region=? AND o.order_date>=? AND o.order_date<? GROUP BY p.category ORDER BY sales_yuan DESC,p.category ASC",
+      "reference_params": [
+        "华东",
+        "2026-04-01",
+        "2026-07-01"
+      ]
+    },
+    {
+      "id": "T04",
+      "question": "2026年第二季度哪些日期的已支付销售额最高？列出前三天的日期和金额（元），金额相同时按日期升序。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "2026-04-09",
+            48656.3
+          ],
+          [
+            "2026-05-03",
+            42074.05
+          ],
+          [
+            "2026-06-05",
+            39038.9
+          ]
+        ]
+      },
+      "reference_sql": "SELECT o.order_date,ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<? GROUP BY o.order_date ORDER BY sales_yuan DESC,o.order_date ASC LIMIT 3",
+      "reference_params": [
+        "2026-04-01",
+        "2026-07-01"
+      ]
+    },
+    {
+      "id": "T05",
+      "question": "按已支付订单中的商品件数排行，列出销量前三名的商品编号、名称和件数；件数相同时按商品编号升序。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "P008",
+            "扫描仪",
+            604
+          ],
+          [
+            "P009",
+            "碎纸机",
+            601
+          ],
+          [
+            "P010",
+            "固态硬盘",
+            584
+          ]
+        ]
+      },
+      "reference_sql": "SELECT p.product_id,p.product_name,SUM(i.quantity) AS quantity FROM orders o JOIN order_items i ON i.order_id=o.order_id JOIN products p ON p.product_id=i.product_id WHERE o.status='paid' GROUP BY p.product_id,p.product_name ORDER BY quantity DESC,p.product_id ASC LIMIT 3",
+      "reference_params": []
+    },
+    {
+      "id": "T06",
+      "question": "有多少笔已支付订单至少有2条订单明细？按订单数统计。",
+      "expected_status": "completed",
+      "expected": {
+        "order_count": 588
+      },
+      "reference_sql": "SELECT COUNT(*) AS order_count FROM (SELECT o.order_id FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' GROUP BY o.order_id HAVING COUNT(i.item_id)>=2) AS selected_orders",
+      "reference_params": []
+    },
+    {
+      "id": "T07",
+      "question": "按地区列出全部订单数、取消订单数和取消率，取消率以该地区全部订单数为分母并保留两位百分数，按地区名称升序。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "华东",
+            254,
+            59,
+            23.23
+          ],
+          [
+            "华北",
+            256,
+            48,
+            18.75
+          ],
+          [
+            "华南",
+            249,
+            49,
+            19.68
+          ],
+          [
+            "西南",
+            241,
+            44,
+            18.26
+          ]
+        ]
+      },
+      "reference_sql": "SELECT region,COUNT(*) AS order_count,SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled_count,ROUND(SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END)*100.0/COUNT(*),2) AS cancelled_percent FROM orders GROUP BY region ORDER BY region ASC",
+      "reference_params": []
+    },
+    {
+      "id": "T08",
+      "question": "哪一笔已支付订单的明细金额最高？返回订单号和金额（元）；金额相同时按订单号升序只取第一笔。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "V2O0212",
+            15433.9
+          ]
+        ]
+      },
+      "reference_sql": "SELECT o.order_id,ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' GROUP BY o.order_id ORDER BY sales_yuan DESC,o.order_id ASC LIMIT 1",
+      "reference_params": []
+    },
+    {
+      "id": "T09",
+      "question": "哪一笔已支付订单的明细金额最低？必须包含零金额订单，返回订单号和金额（元）；并列时按订单号升序只取第一笔。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "V2O0004",
+            0.0
+          ]
+        ]
+      },
+      "reference_sql": "SELECT o.order_id,ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' GROUP BY o.order_id ORDER BY sales_yuan ASC,o.order_id ASC LIMIT 1",
+      "reference_params": []
+    },
+    {
+      "id": "T10",
+      "question": "已支付订单中，有多少笔订单的明细金额合计不少于10000元？请先按订单汇总，再统计订单数。",
+      "expected_status": "completed",
+      "expected": {
+        "order_count": 31
+      },
+      "reference_sql": "SELECT COUNT(*) AS order_count FROM (SELECT o.order_id FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' GROUP BY o.order_id HAVING SUM(i.quantity*i.unit_price_cents)>=?) AS selected_orders",
+      "reference_params": [
+        1000000
+      ]
+    },
+    {
+      "id": "T11",
+      "question": "仅统计已支付订单，商品P001按购买数量加权的平均实际成交单价是多少元？用金额合计除以件数合计，保留两位小数。",
+      "expected_status": "completed",
+      "expected": {
+        "weighted_unit_price_yuan": 289.89
+      },
+      "reference_sql": "SELECT ROUND(SUM(i.quantity*i.unit_price_cents)/100.0/SUM(i.quantity),2) AS weighted_unit_price_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' AND i.product_id=?",
+      "reference_params": [
+        "P001"
+      ]
+    },
+    {
+      "id": "T12",
+      "question": "华北地区的已支付销售额占全部已支付销售额的百分之多少？分母使用所有地区的已支付销售额，百分数保留两位小数。",
+      "expected_status": "completed",
+      "expected": {
+        "share_percent": 26.59
+      },
+      "reference_sql": "SELECT ROUND(SUM(CASE WHEN o.region='华北' THEN i.quantity*i.unit_price_cents ELSE 0 END)*100.0/SUM(i.quantity*i.unit_price_cents),2) AS share_percent FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid'",
+      "reference_params": []
+    },
+    {
+      "id": "T13",
+      "question": "按商品类别分别列出2026年第一季度、第二季度已支付销售额（元）及第二季度相对第一季度的增长率，第一季度为基期，百分数保留两位，按类别名称升序。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "办公设备",
+            666739.2,
+            621291.3,
+            -6.82
+          ],
+          [
+            "存储设备",
+            147287.25,
+            166637.0,
+            13.14
+          ],
+          [
+            "显示设备",
+            682520.55,
+            615090.6,
+            -9.88
+          ],
+          [
+            "电脑配件",
+            145951.85,
+            144161.65,
+            -1.23
+          ]
+        ]
+      },
+      "reference_sql": "SELECT p.category,ROUND(SUM(CASE WHEN o.order_date<'2026-04-01' THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS q1_yuan,ROUND(SUM(CASE WHEN o.order_date>='2026-04-01' THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS q2_yuan,ROUND((SUM(CASE WHEN o.order_date>='2026-04-01' THEN i.quantity*i.unit_price_cents ELSE 0 END)-SUM(CASE WHEN o.order_date<'2026-04-01' THEN i.quantity*i.unit_price_cents ELSE 0 END))*100.0/SUM(CASE WHEN o.order_date<'2026-04-01' THEN i.quantity*i.unit_price_cents ELSE 0 END),2) AS growth_percent FROM orders o JOIN order_items i ON i.order_id=o.order_id JOIN products p ON p.product_id=i.product_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<? GROUP BY p.category ORDER BY p.category ASC",
+      "reference_params": [
+        "2026-01-01",
+        "2026-07-01"
+      ]
+    },
+    {
+      "id": "T14",
+      "question": "按月份统计2026年1月至6月的已支付订单笔数，按月份升序，并绘制柱状图。纵轴使用订单笔数。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "2026-01",
+            145
+          ],
+          [
+            "2026-02",
+            120
+          ],
+          [
+            "2026-03",
+            136
+          ],
+          [
+            "2026-04",
+            133
+          ],
+          [
+            "2026-05",
+            138
+          ],
+          [
+            "2026-06",
+            128
+          ]
+        ]
+      },
+      "reference_sql": "SELECT strftime('%Y-%m',order_date) AS month,COUNT(*) AS order_count FROM orders WHERE status='paid' AND order_date>=? AND order_date<? GROUP BY month ORDER BY month ASC",
+      "reference_params": [
+        "2026-01-01",
+        "2026-07-01"
+      ],
+      "requires_chart": true
+    },
+    {
+      "id": "T15",
+      "question": "查询订单V2O9999的订单状态。如果没有找到该订单，请明确说明不存在，不要将其当作一笔零金额订单。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": []
+      },
+      "reference_sql": "SELECT order_id,status FROM orders WHERE order_id=?",
+      "reference_params": [
+        "V2O9999"
+      ],
+      "review_points": [
+        "结果为空时说明没有找到该订单。",
+        "不得编造状态，或将不存在描述为已存在且金额为零。"
+      ]
+    },
+    {
+      "id": "T16",
+      "question": "请统计某个月的已支付订单数量，但我还没确定年份和月份。先向我询问这两个条件，不要自行选择时间范围。",
+      "expected_status": "needs_clarification",
+      "expected": {
+        "ask_for": [
+          "年份",
+          "月份"
+        ],
+        "must_not_assume_scope": true
+      },
+      "review_points": [
+        "明确询问缺失条件，不自行选择范围。",
+        "不得将全库统计或猜测的范围当成所请求结果。"
+      ]
+    },
+    {
+      "id": "T17",
+      "question": "2026年7月已支付销售额相比6月增长了百分之多少？没有订单的月份金额按0计算，以6月为基期，百分数保留两位。",
+      "expected_status": "completed",
+      "expected": {
+        "base_yuan": 534742.0,
+        "current_yuan": 0.0,
+        "growth_percent": -100.0
+      },
+      "reference_sql": "SELECT ROUND(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS base_yuan,ROUND(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS current_yuan,ROUND((SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)-SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END))*100.0/NULLIF(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END),0),2) AS growth_percent FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<?",
+      "reference_params": [
+        "2026-06",
+        "2026-07",
+        "2026-07",
+        "2026-06",
+        "2026-06",
+        "2026-06-01",
+        "2026-08-01"
+      ]
+    },
+    {
+      "id": "T18",
+      "question": "2026年1月已支付销售额相比2025年12月的增长率是多少？没有订单的月份金额按0，若基期金额为0，请说明无法按该公式计算，不要给出百分比。",
+      "expected_status": "completed",
+      "expected": {
+        "base_yuan": 0.0,
+        "current_yuan": 539628.25,
+        "growth_percent": null
+      },
+      "reference_sql": "SELECT ROUND(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS base_yuan,ROUND(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)/100.0,2) AS current_yuan,ROUND((SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END)-SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END))*100.0/NULLIF(SUM(CASE WHEN strftime('%Y-%m',o.order_date)=? THEN i.quantity*i.unit_price_cents ELSE 0 END),0),2) AS growth_percent FROM orders o JOIN order_items i ON i.order_id=o.order_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<?",
+      "reference_params": [
+        "2025-12",
+        "2026-01",
+        "2026-01",
+        "2025-12",
+        "2025-12",
+        "2025-12-01",
+        "2026-02-01"
+      ],
+      "review_points": [
+        "给出或说明基期为0，增长率无法按该公式计算。",
+        "不得将零基期增长率回答为0%、100%或无穷大。"
+      ]
+    },
+    {
+      "id": "T19",
+      "question": "2026年第二季度，按地区和商品类别两个维度统计已支付销售额（元），按地区名称升序、类别名称升序排列。",
+      "expected_status": "completed",
+      "expected": {
+        "rows": [
+          [
+            "华东",
+            "办公设备",
+            135324.3
+          ],
+          [
+            "华东",
+            "存储设备",
+            37967.15
+          ],
+          [
+            "华东",
+            "显示设备",
+            154868.55
+          ],
+          [
+            "华东",
+            "电脑配件",
+            36752.05
+          ],
+          [
+            "华北",
+            "办公设备",
+            153427.5
+          ],
+          [
+            "华北",
+            "存储设备",
+            39302.45
+          ],
+          [
+            "华北",
+            "显示设备",
+            165034.05
+          ],
+          [
+            "华北",
+            "电脑配件",
+            33518.95
+          ],
+          [
+            "华南",
+            "办公设备",
+            170400.75
+          ],
+          [
+            "华南",
+            "存储设备",
+            50701.0
+          ],
+          [
+            "华南",
+            "显示设备",
+            169269.25
+          ],
+          [
+            "华南",
+            "电脑配件",
+            35093.9
+          ],
+          [
+            "西南",
+            "办公设备",
+            162138.75
+          ],
+          [
+            "西南",
+            "存储设备",
+            38666.4
+          ],
+          [
+            "西南",
+            "显示设备",
+            125918.75
+          ],
+          [
+            "西南",
+            "电脑配件",
+            38796.75
+          ]
+        ]
+      },
+      "reference_sql": "SELECT o.region,p.category,ROUND(SUM(i.quantity*i.unit_price_cents)/100.0,2) AS sales_yuan FROM orders o JOIN order_items i ON i.order_id=o.order_id JOIN products p ON p.product_id=i.product_id WHERE o.status='paid' AND o.order_date>=? AND o.order_date<? GROUP BY o.region,p.category ORDER BY o.region ASC,p.category ASC",
+      "reference_params": [
+        "2026-04-01",
+        "2026-07-01"
+      ]
+    },
+    {
+      "id": "T20",
+      "question": "请按我选定的地区统计2026年第二季度已支付销售额，地区我会下一条再告诉你。请先向我确认地区，不要先按全部地区统计。",
+      "expected_status": "needs_clarification",
+      "expected": {
+        "ask_for": [
+          "地区"
+        ],
+        "must_not_assume_scope": true
+      },
+      "review_points": [
+        "明确询问缺失条件，不自行选择范围。",
+        "不得将全库统计或猜测的范围当成所请求结果。"
+      ]
+    }
+  ]
+}
