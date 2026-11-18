@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import agent
 import tools
-from eval_data import load_eval_inputs, restore_database
+from eval_data import EVAL_SUITES, load_eval_inputs, restore_database
 from eval_manifest import build_eval_manifest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -78,6 +78,12 @@ def build_report(inputs, cases):
             raise ValueError(f"题目{case['id']}的expected_status不受支持")
     return {
         "report_version": 2,
+        "suite_name": inputs["suite_name"],
+        "split": inputs["split"],
+        "dataset_file": inputs["dataset_file"],
+        "cases_file": inputs["cases_file"],
+        "dataset_version": inputs["dataset_version"],
+        "cases_version": inputs["cases_version"],
         "started_at": datetime.now(LOCAL_TZ).isoformat(),
         "finished_at": None,
         "requested_model": agent.MODEL_NAME,
@@ -103,14 +109,16 @@ def build_report(inputs, cases):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--case", default="E01", help="题目ID，填all运行全部")
+    parser.add_argument("--suite", choices=EVAL_SUITES, default="v1", help="选择评测输入，默认v1")
+    parser.add_argument("--case", help="题目ID，填all运行全部，默认所选题集首题")
     parser.add_argument("--check-only", action="store_true", help="只检查输入与报告信息，不请求模型")
     args = parser.parse_args()
 
-    inputs = load_eval_inputs()
+    inputs = load_eval_inputs(args.suite)
     cases = inputs["cases"]
-    if args.case != "all":
-        cases = [case for case in cases if case["id"] == args.case]
+    selected_case = args.case if args.case is not None else cases[0]["id"]
+    if selected_case != "all":
+        cases = [case for case in cases if case["id"] == selected_case]
     if not cases:
         parser.error("找不到指定的题目ID")
 
@@ -119,7 +127,15 @@ def main():
         with closing(sqlite3.connect(":memory:")) as conn:
             restore_database(conn, inputs["dataset"])
         print("评测准备检查通过（未请求真实API）")
+        print("评测题集：", report["suite_name"])
+        print("题集用途：", report["split"])
+        print("数据文件：", report["dataset_file"])
+        print("题目文件：", report["cases_file"])
+        print("数据指纹：", report["dataset_sha256"][:16])
+        print("题集指纹：", report["cases_sha256"][:16])
         print("固定题目数量：", len(cases))
+        for table_name, table in inputs["dataset"]["tables"].items():
+            print(table_name, "行数：", len(table["rows"]))
         print("模型：", report["requested_model"])
         print("模型调用上限：", report["max_rounds"])
         print("任务时间预算（秒）：", report["max_seconds"])

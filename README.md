@@ -21,7 +21,8 @@
 - 已保存模型服务返回的逐轮 Token 用量并生成本次任务汇总；用量缺失时标记为未知，已有离线检查和真实 JSON 请求核验记录。
 - 已接入每问默认 30 秒的时间预算，在模型、工具和结束校验边界检查；超限时保留已有记录并返回 failed，已完成离线检查和真实正常路径验收。
 - 评测报告已记录核心代码清单、运行环境和明确的执行上限；审核时检查实际业务状态是否符合题目预期，已通过离线检查。
-- 第二版完整业务题集评测将在后续进行。
+- 已准备第二版固定快照（1000 笔订单、12 种商品、2481 条明细）和 20 道开发题，标准答案与参考查询、输入选择和报告记录已通过离线检查。
+- 第二版开发集的真实采集与人工审核将在后续进行，保留题集另行验收。
 
 ## 执行链路
 
@@ -67,13 +68,14 @@ flowchart TD
 三张表为 `orders`（订单）、`products`（商品）、`order_items`（订单明细）。
 一笔订单可以有多条明细，商品通过商品 ID 被不同订单引用。
 
-固定模拟数据包含 6 笔订单、3 种商品、9 条明细，其中已支付 4 笔、已取消 2 笔。
+`seed_data.py` 填充的演示数据包含 6 笔订单、3 种商品、9 条明细，其中已支付 4 笔、已取消 2 笔。网页和普通 CLI 使用业务数据库。
+第二版评测从独立 JSON 快照恢复 1000 笔订单、12 种商品、2481 条明细，不改变演示业务库。
 
 - 单价使用整数分：`unit_price_cents`。
 - 本项目已支付销售额按 `status = 'paid'` 的明细汇总 `quantity × unit_price_cents`，展示时除以 100 转为元。
 - 取消订单的明细金额单独统计。
 - 平均每单销售额使用订单数作为分母，关联明细后需要避免重复计数。
-- 环比增长以对比月份为基期，例如本数据中 10 月相对 9 月为 `(1700 - 1400) / 1400 × 100% = 21.43%`。
+- 环比增长以对比月份为基期，例如第一版演示数据中 10 月相对 9 月为 `(1700 - 1400) / 1400 × 100% = 21.43%`。
 
 ## 主要文件
 
@@ -91,8 +93,10 @@ flowchart TD
 | [run_trace.py](run_trace.py)、[trace_logging.py](trace_logging.py) | 本次分析的追踪编号、累计耗时与 JSON 追踪摘要 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
-| [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
-| [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 校验快照、恢复独立评测库、采集结果 |
+| [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 第一版固定快照、10 个任务和标准结果 |
+| [eval_fixture_v2.json](eval_fixture_v2.json)、[eval_cases_v2_dev.json](eval_cases_v2_dev.json) | 第二版固定快照、20 道开发题及本地标准答案与参考查询 |
+| [build_eval_fixture_v2.py](build_eval_fixture_v2.py) | 按固定种子和规则生成第二版快照 |
+| [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 选择成对输入、校验快照、恢复独立评测库、采集结果与报告元数据 |
 | [eval_manifest.py](eval_manifest.py) | 记录评测核心代码、采集与审核脚本、依赖声明的指纹 |
 | [summarize_eval.py](summarize_eval.py) | 检查审核记录与预期业务状态，合并结论并生成汇总 |
 | [requirements.txt](requirements.txt)、[requirements-dev.txt](requirements-dev.txt)、[.env.example](.env.example) | 运行依赖、开发检查依赖与配置模板 |
@@ -486,16 +490,30 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 
 ## 固定任务评测
 
-评测读取仓库中的 `eval_fixture_v1.json`，恢复独立数据库，避免业务库后续新增订单改变评测数据。
-当前固定快照包含 6 笔订单、3 种商品、9 条明细，题集为 `eval_cases_v1.json` 中的 10 题。
-每题独立调用 Agent，不传会话编号。脚本只传入问题与明确的执行上限，标准结果 `expected` 和预期业务状态 `expected_status` 留在本地报告中用于审核。
-`freeze_eval_data.py` 用于制作数据快照，当前 v1 快照已提供。
+评测按 `--suite` 选择成对的数据快照与题集，并恢复独立数据库，避免业务库后续新增订单改变评测数据。
+每题独立调用 Agent，不传会话编号。脚本只传入问题与明确的执行上限，标准结果 `expected`、预期业务状态 `expected_status` 和参考 SQL 留在本地用于核对。
+
+| `--suite` | 数据文件 | 题目文件 | 规模与用途 |
+| --- | --- | --- | --- |
+| `v1`（默认） | [eval_fixture_v1.json](eval_fixture_v1.json) | [eval_cases_v1.json](eval_cases_v1.json) | 6 笔订单、3 种商品、9 条明细、10 题，`split=legacy` |
+| `v2-dev` | [eval_fixture_v2.json](eval_fixture_v2.json) | [eval_cases_v2_dev.json](eval_cases_v2_dev.json) | 1000 笔订单、12 种商品、2481 条明细、20 道开发题，`split=development` |
+
+第二版数据由 `build_eval_fixture_v2.py` 使用固定种子 `20261118` 生成，覆盖 2026 年 1—6 月、4 个地区和 4 类商品，含 800 笔已支付订单与 200 笔取消订单。
+数据保留了同商品不同成交价、零金额明细、未售出商品、月份边界和无订单月份。
+固定种子、生成规则和运行环境一致时可重复生成同一数据；生成器复用第一版表结构，以 `x` 模式保存新文件，拒绝覆盖已有快照。仓库已提供两份快照，直接检查即可。
+
+20 道开发题覆盖订单数、金额与件数、月份／地区／商品／类别分组、日期范围、客单价、空结果、成交价与单位换算、环比和柱状图。
+标准答案从快照按整数分与 Decimal 计算，再与 SQLite 参考查询核对；`check_eval_cases_v2.py` 用内存数据库重查标准结果。参考查询也已通过现有只读工具的限制。
+开发集用于调试，之后的保留题集单独验收和记录。本次更新完成的是离线准备检查，第二版真实模型成绩尚未采集。
+
+第二版数据指纹前 16 位为 `f38dfff16bf45ab7`，开发题集为 `dc761013f17a2113`。
+第一版快照仍可由 `freeze_eval_data.py` 从业务库制作，已归档文件继续保留。
 
 新采集报告使用 `report_version: 2`，记录以下信息：
 
 | 信息 | 报告内容 |
 | --- | --- |
-| 固定输入 | 数据快照与题集各自的 SHA-256 指纹 |
+| 固定输入 | `suite_name`、`split`、两个输入文件名、数据与题集版本，以及各自的 SHA-256 指纹 |
 | 代码清单 | `code_manifest` 保存 18 个声明文件的逐文件指纹和总指纹，包含核心执行代码、评测与审核脚本、依赖声明；完整清单见 [eval_manifest.py](eval_manifest.py) |
 | 环境 | Python、SQLite、操作系统信息，以及当前环境实际安装的包名与版本 |
 | 执行上限 | 显式传入并记录 `max_rounds: 6`、`max_seconds: 30.0`；时间预算仍按前文所述在执行边界检查 |
@@ -503,35 +521,44 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 
 代码指纹按 UTF-8 文本计算，统一 BOM 和换行；修改代码文本或依赖声明会改变指纹，必需文件缺失时直接报错。
 原有 `agent_code_sha256`、`tools_code_sha256` 字段继续保留。
-报告结构版本 2、代码清单格式版本 1、数据与题集版本 1 分别描述不同内容。
+报告结构版本为 2，代码清单格式版本为 1；数据与题集版本由所选输入决定，`v1` 为 1，`v2-dev` 为 2。
 
-先执行准备检查与三个离线检查：
+第二版准备检查及离线复现命令如下：
 
 ```powershell
-.\venv\Scripts\python.exe -X utf8 eval_agent.py --case all --check-only
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --suite v2-dev --case all --check-only
+.\venv\Scripts\python.exe -X utf8 check_eval_fixture_v2.py
+.\venv\Scripts\python.exe -X utf8 check_eval_cases_v2.py
+.\venv\Scripts\python.exe -X utf8 check_eval_suite_entry.py
 .\venv\Scripts\python.exe -X utf8 check_eval_manifest.py
 .\venv\Scripts\python.exe -X utf8 check_eval_report_metadata.py
 .\venv\Scripts\python.exe -X utf8 check_eval_review.py
 ```
 
 `--check-only` 在内存数据库中检查快照能否恢复，并检查报告信息；不启动 Agent，也不创建评测批次目录。
-三个检查分别验证代码清单、报告采集和审核规则，使用临时文件、临时数据库或预设 Agent，均不请求真实模型服务。
+检查脚本使用内存／临时数据库、临时文件或预设 Agent，不请求真实模型服务。
+覆盖固定生成、标准答案、v1／v2 选择与旧默认兼容、错误输入拒绝、报告记录、采集隔离和审核规则。
 检查通过说明评测流程按约定工作，通过率需要完成真实采集和人工审核后统计。
 
-单题试跑可使用 `--case E01`；完整采集使用：
+不传 `--suite` 时仍使用 `v1`。不指定 `--case` 时选择当前题集首题：`v1` 为 `E01`，`v2-dev` 为 `D01`；`--case all` 表示所选题集的全部题目。
+第一版准备检查仍可使用原命令 `eval_agent.py --case all --check-only`。
+
+第二版单题试跑与完整采集命令如下，两条都会调用模型服务：
 
 ```powershell
-.\venv\Scripts\python.exe -X utf8 eval_agent.py --case all
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --suite v2-dev --case D01
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --suite v2-dev --case all
 ```
 
-该步骤会调用模型服务。每批结果保存在新建的 `eval_runs/run_*/` 目录，包括数据库、原始报告、逐题日志和生成的图片。
+每批结果保存在新建的 `eval_runs/run_*/` 目录，包括独立数据库、原始报告、逐题日志和生成的图片。
+第一版全题采集仍可使用原命令 `eval_agent.py --case all`。
 
 ### 审核与汇总新批次
 
-1. 对照每题的 `expected`，核对成功 SQL 结果、最终回答、统计口径和要求的图片。
+1. 确认原始报告的 `suite_name`、`split` 与本次题集一致；对照每题的 `expected`，核对成功 SQL 结果、最终回答、统计口径和要求的图片。
 2. 在该批次目录创建 `review.json`，格式可参考[已归档审核记录](eval_runs/run_0d6a458fdeda/review.json)。
 3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`。`execution_status=completed` 只表示函数正常返回；`result.status` 才是 Agent 的业务状态。
-4. 新报告中，标记通过必须满足函数正常返回、实际业务状态等于 `expected_status`。现有 10 题默认预期 `completed`；后续澄清或失败类题目可明确指定 `needs_clarification` 或 `failed`。状态匹配后仍需核对答案、SQL 和图表，程序不会自动判定内容正确。
+4. 新报告中，标记通过必须满足函数正常返回、实际业务状态等于 `expected_status`。`v1` 的 10 题默认预期 `completed`，`v2-dev` 的 20 题显式要求 `completed`；后续澄清或失败类题目可明确指定 `needs_clarification` 或 `failed`。状态匹配后仍需核对答案、SQL 和图表，程序不会自动判定内容正确。
 5. `source_report_sha256` 应填写本次原始报告的内容指纹，不能直接沿用其他批次的指纹。
 
 将下方变量替换成终端打印的本次真实报告路径，再计算指纹：
@@ -549,6 +576,7 @@ $reportPath = ".\eval_runs\run_替换为本次目录\report.json"
 
 生成 `report_reviewed.json` 与 `summary.md`。汇总按审核结论统计通过数，“函数正常返回”单独计数，原始运行报告保留。
 第一版归档没有业务状态字段，继续按原人工核验方式读取；已有明确业务状态的记录仍需符合预期。
+发布结果时注明所用题集与用途，第二版开发集成绩和下方第一版归档分别记录。
 
 ### 已归档验收结果
 
