@@ -132,7 +132,8 @@ def call_tool(tool_name, raw_arguments, query_store=None):
         }
 
 def run_agent(
-    question, max_rounds=6, requires_query=True, thread_id=None, on_event=None
+    question, max_rounds=6, requires_query=True, thread_id=None,
+    on_event=None, max_seconds=30.0,
 ):
     if thread_id is None:
         return run_graph_agent(
@@ -142,6 +143,7 @@ def run_agent(
             max_rounds=max_rounds,
             requires_query=requires_query,
             on_event=on_event,
+            max_seconds=max_seconds,
         )
 
     return run_session_agent(
@@ -152,6 +154,7 @@ def run_agent(
         max_rounds=max_rounds,
         requires_query=requires_query,
         on_event=on_event,
+        max_seconds=max_seconds,
     )
 
 if __name__ == "__main__":

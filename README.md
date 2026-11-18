@@ -19,6 +19,7 @@
 - 追踪功能已通过离线检查，真实 JSON 请求的返回体与结束日志编号、耗时一致。
 - 已记录每轮模型请求及每次工具调用的分项耗时，并通过离线检查和一次真实 JSON 请求核验。
 - 已保存模型服务返回的逐轮 Token 用量并生成本次任务汇总；用量缺失时标记为未知，已有离线检查和真实 JSON 请求核验记录。
+- 已接入每问默认 30 秒的时间预算，在模型、工具和结束校验边界检查；超限时保留已有记录并返回 failed，已完成离线检查和真实正常路径验收。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
@@ -29,18 +30,20 @@ flowchart TD
     J["JSON 客户端：POST /analyze"] --> S
     H --> S["复用或生成 thread_id"]
     S --> A["run_agent → run_session_agent"]
-    A --> N["读取会话历史，重建本轮 State"]
+    A --> N["创建本轮预算，读取历史并重建 State"]
     C["CLI 输入问题"] --> I["run_agent → run_graph_agent"]
-    I --> N0["初始化独立 State"]
+    I --> N0["创建本轮预算并初始化独立 State"]
     N --> M["model：检查预算并请求模型"]
     N0 --> M
     M -->|工具请求| T["tools：执行工具并保存查询快照"]
-    T --> M
+    T -->|继续| M
+    T -->|时间预算耗尽| R
     T -.工具事件.-> E["on_event → 后台队列"]
     E --> P["SSE 工具进度"]
     P --> D
     M -->|结束JSON| V["validate：检查结束信息与引用"]
     V -->|需要修正| M
+    V -->|时间预算耗尽| R
     V -->|通过| R["记录本轮结束问答，返回回答、证据与产物"]
     M -->|预算耗尽，返回failed| R
     R -->|流式请求| F["SSE final：正式结果"]
@@ -78,10 +81,11 @@ flowchart TD
 | [init_db.py](init_db.py)、[seed_data.py](seed_data.py) | 创建业务数据库并插入模拟数据 |
 | [tools.py](tools.py) | 数据结构、只读 SQL 和绘图工具 |
 | [agent.py](agent.py) | 模型请求与服务用量提取、工具分发、图执行入口与 CLI |
-| [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由、调用次数限制、分项计时与逐轮用量记录 |
+| [graph_agent.py](graph_agent.py) | LangGraph 节点、条件路由、次数与时间预算检查、分项计时和逐轮用量记录 |
 | [agent_state.py](agent_state.py) | 任务状态、历史问答初始化、本轮结束记录与用量汇总接入 |
 | [usage_models.py](usage_models.py) | 服务 Token 计数的校验、未知值处理与任务汇总 |
-| [session_runner.py](session_runner.py) | 按会话编号恢复历史、SQLite 持久化与同会话请求冲突保护 |
+| [session_runner.py](session_runner.py) | 按会话编号恢复历史、创建本轮预算、SQLite 持久化与同会话请求冲突保护 |
+| [run_budget.py](run_budget.py) | 任务时间上限、剩余时间计算与预算耗尽异常 |
 | [event_models.py](event_models.py)、[stream_runner.py](stream_runner.py) | 进度事件外层格式、后台运行与队列生命周期 |
 | [run_trace.py](run_trace.py)、[trace_logging.py](trace_logging.py) | 本次分析的追踪编号、累计耗时与 JSON 追踪摘要 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
@@ -191,12 +195,12 @@ HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘�
 
 | 事件 | 内容与含义 |
 | --- | --- |
-| `tool_start` | 工具开始执行，包含轮数、工具调用编号、工具名与原始参数 |
+| `tool_start` | 即将执行工具调用，包含轮数、工具调用编号、工具名与原始参数 |
 | `tool_result` | 工具执行结果，包含对应步骤、`result` 与该次调用的 `duration_ms`；`ok=false` 时模型仍可修正后继续 |
 | `final` | 整次调用取得正式结果，包含原接口结果字段和图表 URL；任务状态可以是完成、澄清或失败 |
 | `error` | 本次执行无法继续，包含会话编号、错误类型、说明及对应的 `status_code` |
 
-进度由 Python 在工具实际执行前后产生。未经结束校验的模型文案不会作为 `final` 发送。
+进度由 Python 在工具派发与反馈时产生，预算拦截的步骤会明确标记跳过。未经结束校验的模型文案不会作为 `final` 发送。
 事件回调与发送队列是运行时对象，不放入 State 或 SQLite 检查点。
 
 请求字段错误在推送开始前返回 HTTP 400／422；推送开始后 HTTP 响应已经发出，执行异常改用 `error` 事件传递。
@@ -270,6 +274,31 @@ HTTP 接口将图表路径转换成图片 URL，CLI 和评测记录保存磁盘�
 
 逐轮用量与汇总由程序附加到正式结果，JSON 响应和 SSE `final` 均可携带。模型消息、工具反馈和已结束问答历史不混入这些统计字段；原有模型结束 JSON 继续只有三个业务字段。
 当前统计基础 Token 数量，尚未计算货币费用或设置全任务 Token 上限。网页与 JSON 追踪摘要的展示字段维持原有范围。
+
+### 任务时间预算
+
+CLI、独立图调用和会话调用均默认使用 `max_seconds=30.0`。每次分析只创建一个 `TaskBudget` 并交给图运行时使用；同一会话的下一问重新创建，不继承上一问的剩余时间。
+具体入口校验参数后开始计时，会话模式将路径准备、历史恢复和 State 重建也计入。预算对象与计时起点不写入 State 或 SQLite 检查点。
+
+当前几种限制分别作用于不同范围：
+
+| 限制 | 默认值 | 范围 |
+| --- | --- | --- |
+| 模型请求次数 `max_rounds` | 6 轮 | 本次分析的模型调用次数 |
+| SQL 执行预算 | 约 2 秒 | 单条查询，由 SQLite 进度回调定期检查 |
+| HTTP `timeout` | 连接 10 秒、读取等待 60 秒 | 单次模型服务通信的等待，见 [Requests 超时说明](https://requests.readthedocs.io/en/latest/user/quickstart/#timeouts) |
+| 任务时间预算 `max_seconds` | 30 秒 | 在模型请求、每个工具和结束校验的执行边界检查 |
+
+Python 调用可以指定本次时间上限，例如 `run_agent(question, max_seconds=10)`；HTTP 请求体仍只接受原来的 `question` 和 `thread_id`，不开放客户端改写该上限。
+
+- 请求前检查剩余时间；请求返回后先保留真实用量与耗时，再检查是否已超限。
+- 同轮多个工具分别检查。已经完成的结果、查询快照、图表和步骤保留，尚未派发的工具停止运行。
+- 若发送 `tool_start` 后预算耗尽，实际工具不会执行，程序返回明确的预算错误反馈，并标记 `skipped: true`、`duration_ms: 0.0`，表示该调用被跳过。
+- 结束校验前后也检查时间，工具节点已经生成最终失败结果时直接到 `END`，本轮问答只保存一次。
+- 预算耗尽作为业务 `failed` 返回：JSON 接口仍可为 HTTP 200，SSE 使用 `final`。通信异常继续沿原来的 HTTP 错误／SSE `error` 流程处理。
+
+这是执行边界的时间控制。正在运行的同步请求不会被强行中断，仍受原有网络／SQL 超时约束；任务会在下一个检查点发现超限并停止后续处理，实际返回时间可能超过设定值。
+预算已过但请求尚未返回时，会话继续保持占用，直到实际结束才释放。当前未设置全任务 Token 硬上限。
 
 ## 会话行为
 
@@ -361,7 +390,7 @@ node .\check_session_page.cjs
 
 上述耗时仅是一次真实请求的样例，不是平均响应时间或独立评测指标。
 SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实样例使用 JSON 接口。
-全任务预算仍待后续补充。
+任务时间预算的实现与验证见下文。
 
 ## 模型与工具耗时验证
 
@@ -424,6 +453,34 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 `usage_summary` 的 `model_call_count=4`、`usage_call_count=4`、`complete=true`；三个汇总计数与逐轮相加一致。
 本次服务端总耗时为 3825.884 毫秒。
 这是一条真实 JSON 请求的功能验收记录，不代表平均用量、费用或完整业务题集评测结果。
+
+## 时间预算验证
+
+在已有开发依赖环境中执行以下检查，不请求真实模型 API：
+
+```powershell
+.\venv\Scripts\python.exe -X utf8 run_budget.py
+.\venv\Scripts\python.exe -X utf8 check_graph_budget.py
+.\venv\Scripts\python.exe -X utf8 check_entry_budget.py
+.\venv\Scripts\python.exe -X utf8 check_session_memory.py
+```
+
+检查使用可控时钟、预设模型与工具。会话检查使用临时 SQLite，HTTP 检查使用本地 TestClient，跨进程检查会在新 Python 进程中恢复同一临时会话。
+覆盖调用前已耗尽、模型返回后超限仍保存用量、同轮工具停止与已完成结果保留、进度发送期间耗尽、校验前后过期、同会话新问题预算重置、错误参数拒绝、异常清理，以及 JSON／SSE 的预算失败终态。
+预算边界用例中的 2 秒／30 秒由可控时钟推进，不需要实际等待这些时长。
+
+2026-11-18，默认 30 秒预算下，真实 `POST /analyze` 请求“已支付订单共有多少笔？”的正常路径核验记录：
+
+| 检查项 | 本次结果 |
+| --- | --- |
+| 会话编号 | `budget-check-A` |
+| 业务结果 | `completed`，已支付 4 笔、已取消 2 笔，均有本轮分组查询依据 |
+| 执行记录 | 3 次模型请求、2 次成功工具调用，查询未截断、最终引用与查询编号一致 |
+| 服务端总耗时 | 6934.094 毫秒，约 6.934 秒 |
+| Token 汇总 | 输入 3814、输出 155、合计 3969，逐轮求和一致；用量覆盖 3/3 |
+| 追踪编号 | `trace_4b762ef5bb734eb2a1efc577190ab57b` |
+
+该真实样例验证预算内的正常返回，超限分支由上述离线检查覆盖。单次耗时不代表平均性能，第二版完整业务题集评测仍待进行。
 
 ## 固定任务评测
 

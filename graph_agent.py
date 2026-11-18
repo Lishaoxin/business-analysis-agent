@@ -9,6 +9,7 @@ from event_models import AgentEvent
 from query_store import QueryStore
 from time import perf_counter
 from usage_models import parse_usage
+from run_budget import TaskBudget, TaskBudgetExceededError
 
 
 def route_after_model(state: AgentState):
@@ -19,6 +20,12 @@ def route_after_model(state: AgentState):
     return "validate"
 
 
+def route_after_tools(state: AgentState):
+    if state["final_result"] is not None:
+        return END
+    return "model"
+
+
 def route_after_validation(state: AgentState):
     if state["final_result"] is not None:
         return END
@@ -26,9 +33,30 @@ def route_after_validation(state: AgentState):
 
 
 # on_event接收进度字典；它是运行时函数，不放进State。
-def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None):
+def build_agent_graph(
+    request_model, call_tool, checkpointer=None, on_event=None, budget=None
+):
     if on_event is not None and not callable(on_event):
         raise ValueError("on_event必须是可调用对象或None")
+    if budget is not None and not isinstance(budget, TaskBudget):
+        raise ValueError("budget必须是TaskBudget或None")
+
+    # 预算对象只保存在本次图运行的闭包中，不写入State或检查点。
+    def budget_error():
+        if budget is None:
+            return None
+        try:
+            budget.check()
+        except TaskBudgetExceededError as exc:
+            return str(exc)
+        return None
+
+    def finish_budget(state, error):
+        return finish_turn(state, {
+            "status": "failed",
+            "answer": error,
+            "evidence_query_ids": [],
+        })
 
     def emit_event(event_name, data):
         if on_event is None:
@@ -39,6 +67,9 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
 
     # 模型节点先检查请求预算，再保存模型响应和新的调用次数。
     def model_node(state: AgentState):
+        error = budget_error()
+        if error is not None:
+            return finish_budget(state, error)
         if state["rounds"] >= state["max_rounds"]:
             return finish_turn(state, {
                 "status": "failed",
@@ -63,29 +94,46 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
 
         rounds = state["rounds"] + 1
         model_calls = state["model_calls"] + [{
-        "round": rounds,
-        "duration_ms": duration_ms,
-        "usage": usage,
+            "round": rounds,
+            "duration_ms": duration_ms,
+            "usage": usage,
         }]
-
         print(f"第 {rounds} 轮模型返回：")
         print(json.dumps(message, ensure_ascii=False, indent=2))
-
-        return {
+        updates = {
             "model_message": message,
             "rounds": rounds,
             "model_calls": model_calls,
         }
+        # 请求已经返回时先保留真实记录，再决定是否因超时结束。
+        error = budget_error()
+        if error is not None:
+            updates.update(finish_budget({**state, **updates}, error))
+        return updates
 
     # 各节点从同一任务的State恢复查询结果；对象本身不放入State。
     def tools_node(state: AgentState):
+        error = budget_error()
+        if error is not None:
+            return finish_budget(state, error)
+
         query_store = QueryStore(state["query_results"])
-        # 通过新列表返回更新，避免直接修改传入State中的列表。
         messages = list(state["messages"])
         steps = list(state["steps"])
         charts = list(state["charts"])
         message = state["model_message"]
         tool_calls = message.get("tool_calls") or []
+
+        def tool_updates(error=None):
+            updates = {
+                "messages": messages,
+                "steps": steps,
+                "charts": charts,
+                "query_results": query_store.snapshot(),
+            }
+            if error is not None:
+                updates.update(finish_budget({**state, **updates}, error))
+            return updates
 
         assistant_tool_calls = []
         for tool_call in tool_calls:
@@ -94,7 +142,6 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
                 "type": tool_call["type"],
                 "function": tool_call["function"],
             })
-
         messages.append({
             "role": "assistant",
             "content": message.get("content"),
@@ -102,6 +149,10 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
         })
 
         for tool_call in tool_calls:
+            error = budget_error()
+            if error is not None:
+                return tool_updates(error)
+
             tool_name = tool_call["function"]["name"]
             raw_arguments = tool_call["function"]["arguments"]
             tool_info = {
@@ -111,31 +162,40 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
                 "raw_arguments": raw_arguments,
             }
             emit_event("tool_start", tool_info)
-            # 只测本次工具调用，进度回调不计入。
-            started_at = perf_counter()
-            result = call_tool(
-                tool_name, raw_arguments, query_store=query_store
-            )
-            duration_ms = round(
-                (perf_counter() - started_at) * 1000, 3
-            )
+            # 发送进度也可能等待；真正调用工具前再检查一次。
+            error = budget_error()
+            if error is not None:
+                result = {
+                    "ok": False,
+                    "error_type": "TaskBudgetExceededError",
+                    "error": f"未执行工具：{error}",
+                }
+                duration_ms = 0.0
+            else:
+                started_at = perf_counter()
+                result = call_tool(
+                    tool_name, raw_arguments, query_store=query_store
+                )
+                duration_ms = round((perf_counter() - started_at) * 1000, 3)
+
             step = {
                 **tool_info,
                 "result": result,
                 "duration_ms": duration_ms,
             }
+            if error is not None:
+                # 明确标记程序跳过，不能将其当作一次真实SQL执行。
+                step["skipped"] = True
             steps.append(step)
 
             if tool_name == "draw_chart" and result["ok"]:
                 charts.append(result["data"]["chart_path"])
-
             if result["ok"]:
                 print("工具调用成功：", tool_name)
             else:
                 print("工具调用失败：", tool_name)
             print("工具反馈：")
             print(json.dumps(result, ensure_ascii=False, indent=2))
-
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
@@ -143,15 +203,17 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
             })
             emit_event("tool_result", step)
 
-        return {
-            "messages": messages,
-            "steps": steps,
-            "charts": charts,
-            "query_results": query_store.snapshot(),
-        }
+            error = error or budget_error()
+            if error is not None:
+                return tool_updates(error)
+
+        return tool_updates()
 
     # 校验合格才写入final_result；不合格只追加反馈，路由回模型节点。
     def validate_node(state: AgentState):
+        error = budget_error()
+        if error is not None:
+            return finish_budget(state, error)
         content = state["model_message"].get("content") or ""
         query_store = QueryStore(state["query_results"])
         try:
@@ -175,8 +237,15 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
                     ),
                 },
             ]
-            return {"messages": messages}
+            updates = {"messages": messages}
+            error = budget_error()
+            if error is not None:
+                updates.update(finish_budget({**state, **updates}, error))
+            return updates
 
+        error = budget_error()
+        if error is not None:
+            return finish_budget(state, error)
         return finish_turn(state, conclusion)
 
     # 构图阶段只注册节点和路由，不请求模型或执行SQL。
@@ -188,7 +257,9 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
     builder.add_conditional_edges(
         "model", route_after_model, ["tools", "validate", END]
     )
-    builder.add_edge("tools", "model")
+    builder.add_conditional_edges(
+        "tools", route_after_tools, ["model", END]
+    )
     builder.add_conditional_edges(
         "validate", route_after_validation, ["model", END]
     )
@@ -197,15 +268,18 @@ def build_agent_graph(request_model, call_tool, checkpointer=None, on_event=None
 
 def run_graph_agent(
     question, request_model, call_tool, max_rounds=6, requires_query=True,
-    on_event=None,
+    on_event=None, max_seconds=30.0,
 ):
     if type(max_rounds) is not int or max_rounds < 1:
         raise ValueError("max_rounds必须是正整数")
 
+    budget = TaskBudget(max_seconds=max_seconds)
     state = create_initial_state(
         question, max_rounds=max_rounds, requires_query=requires_query
     )
-    graph = build_agent_graph(request_model, call_tool, on_event=on_event)
+    graph = build_agent_graph(
+        request_model, call_tool, on_event=on_event, budget=budget
+    )
     # 图步数包含工具和校验节点，与模型请求次数不同。
     final_state = graph.invoke(
         state,
