@@ -1,0 +1,74 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先获取表结构，再执行查询。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_sVkxXV3ZGdQHdGdiWjGN7601",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_DSxv3ElDT5rjhvbQcX3p9659",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT SUM(oi.quantity * oi.unit_price_cents) AS total_cents, SUM(oi.quantity) AS total_qty, ROUND(SUM(oi.quantity * oi.unit_price_cents) * 1.0 / SUM(oi.quantity) / 100, 2) AS avg_price_yuan FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'paid' AND oi.product_id = 'P001'\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "total_cents",
+      "total_qty",
+      "avg_price_yuan"
+    ],
+    "rows": [
+      [
+        15596325,
+        538,
+        289.89
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_3d9d8d2b723443c8be5c647634eeb88d"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "商品P001在已支付订单中的购买数量加权平均实际成交单价为 **289.89 元**。\n\n计算口径：金额合计 = 15,596,325 分（155,963.25 元），件数合计 = 538 件，155,963.25 ÷ 538 ≈ 289.89 元（保留两位小数）。\n\n{\"status\":\"completed\",\"answer\":\"商品P001在已支付订单中按购买数量加权的平均实际成交单价为289.89元。计算口径：金额合计15,596,325分（即155,963.25元）除以件数合计538件，得约289.89元，保留两位小数。\",\"evidence_query_ids\":[\"query_3d9d8d2b723443c8be5c647634eeb88d\"]}"
+}
+结束信息校验失败： Expecting value: line 1 column 1 (char 0)
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"商品P001在已支付订单中按购买数量加权的平均实际成交单价为289.89元。计算口径：金额合计15,596,325分（即155,963.25元）除以件数合计538件，得约289.89元，保留两位小数。\",\"evidence_query_ids\":[\"query_3d9d8d2b723443c8be5c647634eeb88d\"]}"
+}

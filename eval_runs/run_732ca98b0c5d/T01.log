@@ -1,0 +1,66 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "I'll start by checking the schema.",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_HlWrjJG7L4qE9QMddARO6135",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_DJTTY88XC7J4bc50X2AC8690",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT COUNT(DISTINCT o.order_id) AS paid_orders, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\", \"params\": [\"2026-04-01\", \"2026-07-01\"]}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "paid_orders",
+      "amt_cents"
+    ],
+    "rows": [
+      [
+        399,
+        154718055
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_6d19f01aa8494cc98053c4f66af0a321"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"2026年第二季度（4月1日含至7月1日不含）已支付订单共 399 笔，销售额合计 1,547,180.55 元（154,718,055 分）。销售额按订单明细的「数量 × 单价」汇总，未考虑优惠或税费调整。\",\"evidence_query_ids\":[\"query_6d19f01aa8494cc98053c4f66af0a321\"]}"
+}

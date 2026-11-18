@@ -1,0 +1,115 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先确认表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_xeQmhYkbV8ANYLHAkx9c2576",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_kXZvzSlLLucrCZjLGteT5116",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.region, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.region\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "region",
+      "amt_cents"
+    ],
+    "rows": [
+      [
+        "华东",
+        75020585
+      ],
+      [
+        "华北",
+        84828685
+      ],
+      [
+        "华南",
+        80380450
+      ],
+      [
+        "西南",
+        78738220
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_9199bdbdb29942a9af04da2865ca6332"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_o0ElAc6WX9u4cIJqZEog2826",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [], \"sql\": \"SELECT ROUND(100.0 * SUM(CASE WHEN o.region = '华北' THEN oi.quantity * oi.unit_price_cents ELSE 0 END) / SUM(oi.quantity * oi.unit_price_cents), 2) AS pct, SUM(CASE WHEN o.region = '华北' THEN oi.quantity * oi.unit_price_cents ELSE 0 END) AS north_cents, SUM(oi.quantity * oi.unit_price_cents) AS total_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid'\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "pct",
+      "north_cents",
+      "total_cents"
+    ],
+    "rows": [
+      [
+        26.59,
+        84828685,
+        318967940
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_8f001b307ff342438f4f91b9d47284c8"
+  }
+}
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"华北地区已支付销售额为 848,286.85 元，全部地区已支付销售额合计为 3,189,679.40 元，华北占比为 26.59%。\",\"evidence_query_ids\":[\"query_9199bdbdb29942a9af04da2865ca6332\",\"query_8f001b307ff342438f4f91b9d47284c8\"]}"
+}

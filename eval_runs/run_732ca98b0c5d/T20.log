@@ -1,0 +1,5 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"needs_clarification\",\"answer\":\"请提供您要统计的地区（订单表中的地区字段值，可多个）。确认地区后我会统计2026年第二季度已支付销售额。\",\"evidence_query_ids\":[]}"
+}

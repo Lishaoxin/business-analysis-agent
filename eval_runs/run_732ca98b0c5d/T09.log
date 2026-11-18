@@ -1,0 +1,66 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_7p1H0NacPE7dF4WYXROD3486",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_G7JjFaon6ohKqslQ6Cdv7139",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.order_id, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id ORDER BY amt_cents ASC, o.order_id ASC LIMIT 1\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "amt_cents"
+    ],
+    "rows": [
+      [
+        "V2O0004",
+        0
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_d0c81eee167d4fcf9f7e44daa5ac676c"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"已支付订单中明细金额最低的是订单 V2O0004，明细金额为 0.00 元（零金额订单已计入）。该金额按 order_items 中 quantity × unit_price_cents 汇总计算。\",\"evidence_query_ids\":[\"query_d0c81eee167d4fcf9f7e44daa5ac676c\"]}"
+}

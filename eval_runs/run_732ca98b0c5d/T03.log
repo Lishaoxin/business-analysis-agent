@@ -1,0 +1,78 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我先确认表结构。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_WbJAf9XRa0dPu8YMnnLC8530",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_e2vUb0dPfzCSg0dVDQLV3804",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT p.category AS category, ROUND(SUM(oi.quantity * oi.unit_price_cents) / 100.0, 2) AS sales_yuan FROM orders o JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id WHERE o.status = 'paid' AND o.region = '华东' AND o.order_date >= '2026-04-01' AND o.order_date < '2026-07-01' GROUP BY p.category ORDER BY sales_yuan DESC, p.category ASC\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "category",
+      "sales_yuan"
+    ],
+    "rows": [
+      [
+        "显示设备",
+        154868.55
+      ],
+      [
+        "办公设备",
+        135324.3
+      ],
+      [
+        "存储设备",
+        37967.15
+      ],
+      [
+        "电脑配件",
+        36752.05
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_e942f28bc18144d9b7477085c6d9c314"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"华东地区2026年第二季度（4月1日—6月30日）已支付订单按商品类别的销售额（元），金额降序排列如下：\\n1. 显示设备：154,868.55 元\\n2. 办公设备：135,324.30 元\\n3. 存储设备：37,967.15 元\\n4. 电脑配件：36,752.05 元\\n合计约 364,912.05 元。本次统计仅包含 status 为 paid 的订单，销售额按 quantity × unit_price_cents 计算，随后换算成元；没有其他类别。\",\"evidence_query_ids\":[\"query_e942f28bc18144d9b7477085c6d9c314\"]}"
+}

@@ -1,0 +1,101 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "I'll start by checking the schema.",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_7q8yfrs2bHD7OTHV05aK7317",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "我没有看到专门表示“已支付”的支付状态？但 `status` 字段有 `paid` 和 `cancelled` 两个值。我来按月汇总已支付销售额。",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_lrvChgsao01zf0SeSrWo0686",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT strftime('%Y-%m', o.order_date) AS ym, SUM(oi.quantity * oi.unit_price_cents) AS amount_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND ((o.order_date >= '2025-12-01' AND o.order_date < '2026-01-01') OR (o.order_date >= '2026-01-01' AND o.order_date < '2026-02-01')) GROUP BY ym ORDER BY ym\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "ym",
+      "amount_cents"
+    ],
+    "rows": [
+      [
+        "2026-01",
+        53962825
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_0070c2ec2bea4cbaaffac69d237010ab"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_a6YXaUOk8uSNGD3iR9Jt6643",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"params\": [\"2025-12-01\", \"2026-01-01\"], \"sql\": \"SELECT COUNT(*) AS cnt, COALESCE(SUM(oi.quantity * oi.unit_price_cents), 0) AS amount_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\"}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "cnt",
+      "amount_cents"
+    ],
+    "rows": [
+      [
+        0,
+        0
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_47575f6debfb4d3388bbcb91319987e5"
+  }
+}
+第 4 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"2025年12月已支付销售额为0.00元（该月无已支付订单，按规则计为0）；2026年1月已支付销售额为539,628.25元。由于基期（2025年12月）金额为0，增长率公式 (本期-基期)/基期 的分母为0，因此无法按该公式计算增长率，故不给出百分比。\",\"evidence_query_ids\":[\"query_0070c2ec2bea4cbaaffac69d237010ab\",\"query_47575f6debfb4d3388bbcb91319987e5\"]}"
+}

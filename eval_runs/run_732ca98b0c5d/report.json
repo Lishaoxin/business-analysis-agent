@@ -1,0 +1,2673 @@
+{
+  "report_version": 2,
+  "suite_name": "v2-test",
+  "split": "holdout",
+  "dataset_file": "eval_fixture_v2.json",
+  "cases_file": "eval_cases_v2_test.json",
+  "dataset_version": 2,
+  "cases_version": 2,
+  "started_at": "2026-11-18T16:39:14.544259+08:00",
+  "finished_at": "2026-11-18T16:41:05.557430+08:00",
+  "requested_model": "deepseek-flash",
+  "max_rounds": 6,
+  "max_seconds": 30.0,
+  "python_version": "3.12.0",
+  "sqlite_version": "3.42.0",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "package_versions": {
+    "aiosqlite": "0.22.1",
+    "annotated-doc": "0.0.6",
+    "annotated-types": "0.8.0",
+    "anyio": "4.16.0",
+    "certifi": "2026.10.23",
+    "charset-normalizer": "3.5.2",
+    "click": "8.5.1",
+    "contourpy": "1.4.0",
+    "cycler": "0.12.1",
+    "distro": "1.9.0",
+    "fastapi": "0.162.5",
+    "fonttools": "4.68.0",
+    "h11": "0.16.0",
+    "httpcore": "1.0.9",
+    "httpcore2": "2.16.0",
+    "httpx": "0.28.1",
+    "httpx2": "2.16.0",
+    "idna": "3.20",
+    "jsonpatch": "1.47",
+    "jsonpointer": "3.12",
+    "kiwisolver": "1.5.1",
+    "langchain-core": "1.8.1",
+    "langchain-protocol": "0.0.21",
+    "langgraph": "1.2.22",
+    "langgraph-checkpoint": "4.3.2",
+    "langgraph-checkpoint-sqlite": "3.1.3",
+    "langgraph-prebuilt": "1.1.2",
+    "langgraph-sdk": "0.4.14",
+    "langsmith": "0.14.17",
+    "matplotlib": "3.11.2",
+    "numpy": "2.5.4",
+    "opentelemetry-api": "1.45.2",
+    "orjson": "3.13.0",
+    "ormsgpack": "1.13.1",
+    "packaging": "26.3",
+    "pillow": "13.0.0",
+    "pip": "23.2.1",
+    "pydantic": "2.14.3",
+    "pydantic_core": "2.50.4",
+    "pyparsing": "3.3.3",
+    "python-dateutil": "4.0.0",
+    "python-dotenv": "1.2.4",
+    "PyYAML": "6.0.3",
+    "requests": "2.34.2",
+    "requests-toolbelt": "1.0.0",
+    "sniffio": "1.3.1",
+    "sqlite-vec": "0.1.9",
+    "starlette": "1.10.0",
+    "tenacity": "9.2.1",
+    "truststore": "0.10.5",
+    "typing-inspection": "0.4.5",
+    "typing_extensions": "4.16.0",
+    "tzdata": "2026.6",
+    "urllib3": "2.8.0",
+    "uuid_utils": "0.19.0",
+    "uvicorn": "0.54.0",
+    "websockets": "17.4",
+    "xxhash": "4.1.0",
+    "zstandard": "0.25.0"
+  },
+  "code_manifest": {
+    "version": 1,
+    "hash_mode": "utf8-no-bom-lf",
+    "files": {
+      "agent.py": "f2380dfabc5959a2b687b70576cab6077cf40f4207fb6eae947ef0b65e759f49",
+      "graph_agent.py": "d73d2afb9c7f4d7c4d99c33198870ac526533e2da3dfd04561ceec4787253909",
+      "agent_state.py": "e449f26d369f1d633f2b520a1585a6a7d8380abac27a75472632ecaf47caac0d",
+      "tools.py": "224046ebc0d715a9542ac7da208cf33d0199949d25adfdec5854068928057051",
+      "tool_models.py": "8be6e3b4db21568d60e2cd47cde634b0b74de9236cfed75df1d7f2139cc298a0",
+      "result_models.py": "a90eaf0b4dc6bde6d7bd6531585d16c28f8fce3741d889f69efb1191ce0f5e31",
+      "completion_checks.py": "12f12364629b21178ffab61812feefc4a4f990c8a775ac1c9769b5f48def3db6",
+      "query_store.py": "338b96dc6921a92e10e72c5ff42bc7b2d44dcdfe4feff0354888cf85ad7e0038",
+      "usage_models.py": "a43cd30a2e613a81080575414c5c85aa60af12f61ce2324506cfcfc38be9d560",
+      "run_budget.py": "7e6ad4d15714c42141dcd052aaebe4798f5b4badc0d499c9f4e206c05e958a7a",
+      "session_runner.py": "5fbec7b16a899c4db5a4e82b14592e245b039f24fa33d27d2c884d0ffc957d6f",
+      "event_models.py": "7f1488547d0f05c2dc125e783d3e11b0207bfe851f74779104b990d99e412946",
+      "eval_agent.py": "a74bef7c0ee8a25376d44acdc7b5914557b8d7aa70b26bfbb58713461579b4b5",
+      "eval_data.py": "aef72ad3351097cdd43cba4cee2d179c371a164e1b8db9cea4ffe1af005a51dc",
+      "summarize_eval.py": "fb9b0c40ffd23462f4c486e9bcef6c04ac7561aaef3f729c3dfb77a004defdcc",
+      "eval_manifest.py": "36d8fa630d01ecc0d4be420bcd314f643210e09b7de28953bddb25a9dca1a9cd",
+      "requirements.txt": "8c5c02eae4d2439cce25558022fb1b2fe62e9a623239638b5cc5cdabecddc95e",
+      "requirements-dev.txt": "4979c29d9d7cb9ea6a64558ac020429bbe43b3c034b66b6c8af9e5b0ef5268fb"
+    },
+    "code_sha256": "06227f6ee7d852ffefdde005120989486e4f22d207931b3eafd991ce93b933b4"
+  },
+  "dataset_sha256": "f38dfff16bf45ab74b3d378cb25330f57c1dbfb37f8b92233756916308c25856",
+  "cases_sha256": "dfb849382da2e6483cec13d95094c32db14c5d45e49722520a28080ae8268882",
+  "agent_code_sha256": "c9316be4c7c0e950a5f6f183df54f57b625c486513ab3c070c6b7445e3ba2545",
+  "tools_code_sha256": "c65b004d822d9331c0e7185dd255208fd23ce0a72e84e83e5114ed6c005712e3",
+  "requested_cases": [
+    "T01",
+    "T02",
+    "T03",
+    "T04",
+    "T05",
+    "T06",
+    "T07",
+    "T08",
+    "T09",
+    "T10",
+    "T11",
+    "T12",
+    "T13",
+    "T14",
+    "T15",
+    "T16",
+    "T17",
+    "T18",
+    "T19",
+    "T20"
+  ],
+  "rows": [
+    {
+      "id": "T01",
+      "question": "2026年第二季度共有多少笔已支付订单，销售额合计多少元？按4月1日含至7月1日不含统计。",
+      "expected": {
+        "order_count": 399,
+        "sales_yuan": 1547180.55
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年第二季度（4月1日含至7月1日不含）已支付订单共 399 笔，销售额合计 1,547,180.55 元（154,718,055 分）。销售额按订单明细的「数量 × 单价」汇总，未考虑优惠或税费调整。",
+        "evidence_query_ids": [
+          "query_6d19f01aa8494cc98053c4f66af0a321"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_HlWrjJG7L4qE9QMddARO6135",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 1.49
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_DJTTY88XC7J4bc50X2AC8690",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT COUNT(DISTINCT o.order_id) AS paid_orders, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\", \"params\": [\"2026-04-01\", \"2026-07-01\"]}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "paid_orders",
+                  "amt_cents"
+                ],
+                "rows": [
+                  [
+                    399,
+                    154718055
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_6d19f01aa8494cc98053c4f66af0a321"
+              }
+            },
+            "duration_ms": 1.172
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1369.084,
+            "usage": {
+              "prompt_tokens": 1092,
+              "completion_tokens": 29,
+              "total_tokens": 1121
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1426.644,
+            "usage": {
+              "prompt_tokens": 1322,
+              "completion_tokens": 137,
+              "total_tokens": 1459
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2154.459,
+            "usage": {
+              "prompt_tokens": 1537,
+              "completion_tokens": 104,
+              "total_tokens": 1641
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3951,
+          "completion_tokens": 270,
+          "total_tokens": 4221
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.964,
+      "log_file": "T01.log"
+    },
+    {
+      "id": "T02",
+      "question": "按全部订单数为分母，已取消订单占比是多少？百分数保留两位小数。",
+      "expected": {
+        "cancelled_percent": 20.0
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "以全部订单数为分母，已取消订单占比为 20.00%（全部订单 1000 笔，其中已取消 200 笔）。",
+        "evidence_query_ids": [
+          "query_8d15711b2bcb42979d52229877b3eb63"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_CE3Qe1GpNTMLkCTCKvMK4900",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.483
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_su8dwylMXEBTlusPxuCZ6521",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT COUNT(*) AS total_orders, SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders, ROUND(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS cancelled_pct FROM orders\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "total_orders",
+                  "cancelled_orders",
+                  "cancelled_pct"
+                ],
+                "rows": [
+                  [
+                    1000,
+                    200,
+                    20.0
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_8d15711b2bcb42979d52229877b3eb63"
+              }
+            },
+            "duration_ms": 0.883
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1176.908,
+            "usage": {
+              "prompt_tokens": 1079,
+              "completion_tokens": 22,
+              "total_tokens": 1101
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1466.426,
+            "usage": {
+              "prompt_tokens": 1302,
+              "completion_tokens": 125,
+              "total_tokens": 1427
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1556.872,
+            "usage": {
+              "prompt_tokens": 1517,
+              "completion_tokens": 71,
+              "total_tokens": 1588
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3898,
+          "completion_tokens": 218,
+          "total_tokens": 4116
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.21,
+      "log_file": "T02.log"
+    },
+    {
+      "id": "T03",
+      "question": "仅看华东地区2026年第二季度，按商品类别统计已支付销售额（元），金额降序，金额相同时类别名称升序。",
+      "expected": {
+        "rows": [
+          [
+            "显示设备",
+            154868.55
+          ],
+          [
+            "办公设备",
+            135324.3
+          ],
+          [
+            "存储设备",
+            37967.15
+          ],
+          [
+            "电脑配件",
+            36752.05
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "华东地区2026年第二季度（4月1日—6月30日）已支付订单按商品类别的销售额（元），金额降序排列如下：\n1. 显示设备：154,868.55 元\n2. 办公设备：135,324.30 元\n3. 存储设备：37,967.15 元\n4. 电脑配件：36,752.05 元\n合计约 364,912.05 元。本次统计仅包含 status 为 paid 的订单，销售额按 quantity × unit_price_cents 计算，随后换算成元；没有其他类别。",
+        "evidence_query_ids": [
+          "query_e942f28bc18144d9b7477085c6d9c314"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_WbJAf9XRa0dPu8YMnnLC8530",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.556
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_e2vUb0dPfzCSg0dVDQLV3804",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT p.category AS category, ROUND(SUM(oi.quantity * oi.unit_price_cents) / 100.0, 2) AS sales_yuan FROM orders o JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id WHERE o.status = 'paid' AND o.region = '华东' AND o.order_date >= '2026-04-01' AND o.order_date < '2026-07-01' GROUP BY p.category ORDER BY sales_yuan DESC, p.category ASC\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "category",
+                  "sales_yuan"
+                ],
+                "rows": [
+                  [
+                    "显示设备",
+                    154868.55
+                  ],
+                  [
+                    "办公设备",
+                    135324.3
+                  ],
+                  [
+                    "存储设备",
+                    37967.15
+                  ],
+                  [
+                    "电脑配件",
+                    36752.05
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_e942f28bc18144d9b7477085c6d9c314"
+              }
+            },
+            "duration_ms": 1.132
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1434.078,
+            "usage": {
+              "prompt_tokens": 1093,
+              "completion_tokens": 26,
+              "total_tokens": 1119
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1754.515,
+            "usage": {
+              "prompt_tokens": 1320,
+              "completion_tokens": 173,
+              "total_tokens": 1493
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1328.169,
+            "usage": {
+              "prompt_tokens": 1601,
+              "completion_tokens": 171,
+              "total_tokens": 1772
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 4014,
+          "completion_tokens": 370,
+          "total_tokens": 4384
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.526,
+      "log_file": "T03.log"
+    },
+    {
+      "id": "T04",
+      "question": "2026年第二季度哪些日期的已支付销售额最高？列出前三天的日期和金额（元），金额相同时按日期升序。",
+      "expected": {
+        "rows": [
+          [
+            "2026-04-09",
+            48656.3
+          ],
+          [
+            "2026-05-03",
+            42074.05
+          ],
+          [
+            "2026-06-05",
+            39038.9
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年第二季度已支付销售额最高的三天：1）2026-04-09，48,656.30元；2）2026-05-03，42,074.05元；3）2026-06-05，39,038.90元。统计口径为 status='paid' 的订单，按订单日期汇总 order_items 中数量×单价金额（分转元），金额相同时按日期升序排列。",
+        "evidence_query_ids": [
+          "query_e06f6beceb9e428382caa2078c529e8f"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_wvcCTas6HYrDHwy7U4Ll5879",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.338
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_jjHn3jDjANny7xAGvsSE7468",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT o.order_date AS d, ROUND(SUM(oi.quantity * oi.unit_price_cents) / 100.0, 2) AS amt_yuan\\nFROM orders o\\nJOIN order_items oi ON oi.order_id = o.order_id\\nWHERE o.status = 'paid'\\n  AND o.order_date >= '2026-04-01' AND o.order_date <= '2026-06-30'\\nGROUP BY o.order_date\\nORDER BY amt_yuan DESC, d ASC\\nLIMIT 3\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "d",
+                  "amt_yuan"
+                ],
+                "rows": [
+                  [
+                    "2026-04-09",
+                    48656.3
+                  ],
+                  [
+                    "2026-05-03",
+                    42074.05
+                  ],
+                  [
+                    "2026-06-05",
+                    39038.9
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_e06f6beceb9e428382caa2078c529e8f"
+              }
+            },
+            "duration_ms": 1.191
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1182.19,
+            "usage": {
+              "prompt_tokens": 1091,
+              "completion_tokens": 26,
+              "total_tokens": 1117
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1822.854,
+            "usage": {
+              "prompt_tokens": 1318,
+              "completion_tokens": 167,
+              "total_tokens": 1485
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1821.05,
+            "usage": {
+              "prompt_tokens": 1596,
+              "completion_tokens": 178,
+              "total_tokens": 1774
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1479.194,
+            "usage": {
+              "prompt_tokens": 1841,
+              "completion_tokens": 132,
+              "total_tokens": 1973
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5846,
+          "completion_tokens": 503,
+          "total_tokens": 6349
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.315,
+      "log_file": "T04.log"
+    },
+    {
+      "id": "T05",
+      "question": "按已支付订单中的商品件数排行，列出销量前三名的商品编号、名称和件数；件数相同时按商品编号升序。",
+      "expected": {
+        "rows": [
+          [
+            "P008",
+            "扫描仪",
+            604
+          ],
+          [
+            "P009",
+            "碎纸机",
+            601
+          ],
+          [
+            "P010",
+            "固态硬盘",
+            584
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "在已支付订单中按商品件数排行，销量前三名为：第1名 P008 扫描仪，604 件；第2名 P009 碎纸机，601 件；第3名 P010 固态硬盘，584 件。三者件数各不相同，因此未触发“件数相同时按商品编号升序”的规则。统计仅包含状态为已支付的订单，件数按商品汇总求和。",
+        "evidence_query_ids": [
+          "query_ff170330db3144ea815fac7f58cacef0"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_MdL9lXwAJt224YZjDBau2110",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.321
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_UlUUWE52C4O6V0V2ficC0130",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT p.product_id, p.product_name, SUM(oi.quantity) AS total_qty\\nFROM order_items oi\\nJOIN orders o ON o.order_id = oi.order_id\\nJOIN products p ON p.product_id = oi.product_id\\nWHERE o.status = 'paid'\\nGROUP BY p.product_id, p.product_name\\nORDER BY total_qty DESC, p.product_id ASC\\nLIMIT 3\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "product_id",
+                  "product_name",
+                  "total_qty"
+                ],
+                "rows": [
+                  [
+                    "P008",
+                    "扫描仪",
+                    604
+                  ],
+                  [
+                    "P009",
+                    "碎纸机",
+                    601
+                  ],
+                  [
+                    "P010",
+                    "固态硬盘",
+                    584
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_ff170330db3144ea815fac7f58cacef0"
+              }
+            },
+            "duration_ms": 2.069
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1434.331,
+            "usage": {
+              "prompt_tokens": 1093,
+              "completion_tokens": 31,
+              "total_tokens": 1124
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1524.143,
+            "usage": {
+              "prompt_tokens": 1325,
+              "completion_tokens": 140,
+              "total_tokens": 1465
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2073.992,
+            "usage": {
+              "prompt_tokens": 1570,
+              "completion_tokens": 234,
+              "total_tokens": 1804
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1302.083,
+            "usage": {
+              "prompt_tokens": 1872,
+              "completion_tokens": 126,
+              "total_tokens": 1998
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5860,
+          "completion_tokens": 531,
+          "total_tokens": 6391
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.346,
+      "log_file": "T05.log"
+    },
+    {
+      "id": "T06",
+      "question": "有多少笔已支付订单至少有2条订单明细？按订单数统计。",
+      "expected": {
+        "order_count": 588
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "已支付（paid）订单中，拥有至少 2 条订单明细的订单共有 588 笔。",
+        "evidence_query_ids": [
+          "query_b58b96dd166c408a97eccf363c5d51c5"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_MmFWZcHsEYCV7tVtBjES7540",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.395
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_mKiqpRZLLyBX2D3ogBG83881",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT COUNT(*) AS order_cnt FROM (SELECT o.order_id FROM orders o JOIN order_items i ON i.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id HAVING COUNT(*) >= 2)\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "order_cnt"
+                ],
+                "rows": [
+                  [
+                    588
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_b58b96dd166c408a97eccf363c5d51c5"
+              }
+            },
+            "duration_ms": 1.292
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1083.117,
+            "usage": {
+              "prompt_tokens": 1077,
+              "completion_tokens": 22,
+              "total_tokens": 1099
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1476.367,
+            "usage": {
+              "prompt_tokens": 1300,
+              "completion_tokens": 100,
+              "total_tokens": 1400
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1887.83,
+            "usage": {
+              "prompt_tokens": 1467,
+              "completion_tokens": 60,
+              "total_tokens": 1527
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3844,
+          "completion_tokens": 182,
+          "total_tokens": 4026
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.456,
+      "log_file": "T06.log"
+    },
+    {
+      "id": "T07",
+      "question": "按地区列出全部订单数、取消订单数和取消率，取消率以该地区全部订单数为分母并保留两位百分数，按地区名称升序。",
+      "expected": {
+        "rows": [
+          [
+            "华东",
+            254,
+            59,
+            23.23
+          ],
+          [
+            "华北",
+            256,
+            48,
+            18.75
+          ],
+          [
+            "华南",
+            249,
+            49,
+            19.68
+          ],
+          [
+            "西南",
+            241,
+            44,
+            18.26
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "按地区统计（取消率 = 该地区取消订单数 ÷ 该地区全部订单数，保留两位百分比），按地区名称升序：\n\n| 地区 | 全部订单数 | 取消订单数 | 取消率 |\n|---|---|---|---|\n| 华东 | 254 | 59 | 23.23% |\n| 华北 | 256 | 48 | 18.75% |\n| 华南 | 249 | 49 | 19.68% |\n| 西南 | 241 | 44 | 18.26% |\n\n汇总：全部订单 1000 单，取消 200 单，整体取消率 20.00%。其中华东取消率最高（23.23%），西南最低（18.26%）。",
+        "evidence_query_ids": [
+          "query_6ac5f43f45b243a0bb26223f972d2818"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_kcL9ApXqA70QxxiE8ofX6773",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.333
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_6NW2yIULQT1Rxu3KQb6u0327",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT region, COUNT(*) AS total_orders, SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders, ROUND(100.0 * SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancel_rate_pct FROM orders GROUP BY region ORDER BY region ASC\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "region",
+                  "total_orders",
+                  "cancelled_orders",
+                  "cancel_rate_pct"
+                ],
+                "rows": [
+                  [
+                    "华东",
+                    254,
+                    59,
+                    23.23
+                  ],
+                  [
+                    "华北",
+                    256,
+                    48,
+                    18.75
+                  ],
+                  [
+                    "华南",
+                    249,
+                    49,
+                    19.68
+                  ],
+                  [
+                    "西南",
+                    241,
+                    44,
+                    18.26
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_6ac5f43f45b243a0bb26223f972d2818"
+              }
+            },
+            "duration_ms": 0.653
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1378.635,
+            "usage": {
+              "prompt_tokens": 1095,
+              "completion_tokens": 29,
+              "total_tokens": 1124
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1802.087,
+            "usage": {
+              "prompt_tokens": 1325,
+              "completion_tokens": 134,
+              "total_tokens": 1459
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2084.15,
+            "usage": {
+              "prompt_tokens": 1597,
+              "completion_tokens": 210,
+              "total_tokens": 1807
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 4017,
+          "completion_tokens": 373,
+          "total_tokens": 4390
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 5.273,
+      "log_file": "T07.log"
+    },
+    {
+      "id": "T08",
+      "question": "哪一笔已支付订单的明细金额最高？返回订单号和金额（元）；金额相同时按订单号升序只取第一笔。",
+      "expected": {
+        "rows": [
+          [
+            "V2O0212",
+            15433.9
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "已支付订单中明细金额最高的是订单 V2O0212，明细金额合计 15,433.90 元（1,543,390 分）。",
+        "evidence_query_ids": [
+          "query_cff1c29c6cf849a784b921bef1f4110b"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_6SwuAeqmgqEOiTX7XhEt0065",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.371
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_PVBSMwMuG1Fslq3qKGKO0718",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT o.order_id, SUM(i.quantity * i.unit_price_cents) AS amt_cents FROM orders o JOIN order_items i ON i.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id ORDER BY amt_cents DESC, o.order_id ASC LIMIT 1\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "order_id",
+                  "amt_cents"
+                ],
+                "rows": [
+                  [
+                    "V2O0212",
+                    1543390
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_cff1c29c6cf849a784b921bef1f4110b"
+              }
+            },
+            "duration_ms": 1.478
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1032.328,
+            "usage": {
+              "prompt_tokens": 1091,
+              "completion_tokens": 22,
+              "total_tokens": 1113
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1604.252,
+            "usage": {
+              "prompt_tokens": 1314,
+              "completion_tokens": 118,
+              "total_tokens": 1432
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1791.694,
+            "usage": {
+              "prompt_tokens": 1513,
+              "completion_tokens": 70,
+              "total_tokens": 1583
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3918,
+          "completion_tokens": 210,
+          "total_tokens": 4128
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.438,
+      "log_file": "T08.log"
+    },
+    {
+      "id": "T09",
+      "question": "哪一笔已支付订单的明细金额最低？必须包含零金额订单，返回订单号和金额（元）；并列时按订单号升序只取第一笔。",
+      "expected": {
+        "rows": [
+          [
+            "V2O0004",
+            0.0
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "已支付订单中明细金额最低的是订单 V2O0004，明细金额为 0.00 元（零金额订单已计入）。该金额按 order_items 中 quantity × unit_price_cents 汇总计算。",
+        "evidence_query_ids": [
+          "query_d0c81eee167d4fcf9f7e44daa5ac676c"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_7p1H0NacPE7dF4WYXROD3486",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.319
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_G7JjFaon6ohKqslQ6Cdv7139",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT o.order_id, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id ORDER BY amt_cents ASC, o.order_id ASC LIMIT 1\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "order_id",
+                  "amt_cents"
+                ],
+                "rows": [
+                  [
+                    "V2O0004",
+                    0
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_d0c81eee167d4fcf9f7e44daa5ac676c"
+              }
+            },
+            "duration_ms": 1.562
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1211.014,
+            "usage": {
+              "prompt_tokens": 1096,
+              "completion_tokens": 22,
+              "total_tokens": 1118
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1423.798,
+            "usage": {
+              "prompt_tokens": 1319,
+              "completion_tokens": 122,
+              "total_tokens": 1441
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1502.817,
+            "usage": {
+              "prompt_tokens": 1522,
+              "completion_tokens": 85,
+              "total_tokens": 1607
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3937,
+          "completion_tokens": 229,
+          "total_tokens": 4166
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.148,
+      "log_file": "T09.log"
+    },
+    {
+      "id": "T10",
+      "question": "已支付订单中，有多少笔订单的明细金额合计不少于10000元？请先按订单汇总，再统计订单数。",
+      "expected": {
+        "order_count": 31
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "已支付订单中，先按订单汇总明细金额（数量×单价，金额以分存储），合计不少于10000元的订单共有31笔。",
+        "evidence_query_ids": [
+          "query_e013eb9ad679440ba3215480a062a1aa"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_BEVZcPNgGeQaHYU3bgg10432",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.328
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_Hfzqat9hliojYvk31L6d1012",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT COUNT(*) AS order_cnt FROM (SELECT o.order_id, SUM(oi.quantity * oi.unit_price_cents) AS amt FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id HAVING SUM(oi.quantity * oi.unit_price_cents) >= 1000000)\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "order_cnt"
+                ],
+                "rows": [
+                  [
+                    31
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_e013eb9ad679440ba3215480a062a1aa"
+              }
+            },
+            "duration_ms": 1.705
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1495.683,
+            "usage": {
+              "prompt_tokens": 1089,
+              "completion_tokens": 27,
+              "total_tokens": 1116
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1610.333,
+            "usage": {
+              "prompt_tokens": 1317,
+              "completion_tokens": 134,
+              "total_tokens": 1451
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1646.513,
+            "usage": {
+              "prompt_tokens": 1514,
+              "completion_tokens": 111,
+              "total_tokens": 1625
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 2045.144,
+            "usage": {
+              "prompt_tokens": 1693,
+              "completion_tokens": 103,
+              "total_tokens": 1796
+            }
+          },
+          {
+            "round": 5,
+            "duration_ms": 1399.778,
+            "usage": {
+              "prompt_tokens": 1864,
+              "completion_tokens": 63,
+              "total_tokens": 1927
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 5,
+          "usage_call_count": 5,
+          "complete": true,
+          "prompt_tokens": 7477,
+          "completion_tokens": 438,
+          "total_tokens": 7915
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 8.209,
+      "log_file": "T10.log"
+    },
+    {
+      "id": "T11",
+      "question": "仅统计已支付订单，商品P001按购买数量加权的平均实际成交单价是多少元？用金额合计除以件数合计，保留两位小数。",
+      "expected": {
+        "weighted_unit_price_yuan": 289.89
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "商品P001在已支付订单中按购买数量加权的平均实际成交单价为289.89元。计算口径：金额合计15,596,325分（即155,963.25元）除以件数合计538件，得约289.89元，保留两位小数。",
+        "evidence_query_ids": [
+          "query_3d9d8d2b723443c8be5c647634eeb88d"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_sVkxXV3ZGdQHdGdiWjGN7601",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.361
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_DSxv3ElDT5rjhvbQcX3p9659",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT SUM(oi.quantity * oi.unit_price_cents) AS total_cents, SUM(oi.quantity) AS total_qty, ROUND(SUM(oi.quantity * oi.unit_price_cents) * 1.0 / SUM(oi.quantity) / 100, 2) AS avg_price_yuan FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'paid' AND oi.product_id = 'P001'\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "total_cents",
+                  "total_qty",
+                  "avg_price_yuan"
+                ],
+                "rows": [
+                  [
+                    15596325,
+                    538,
+                    289.89
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_3d9d8d2b723443c8be5c647634eeb88d"
+              }
+            },
+            "duration_ms": 0.772
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1393.793,
+            "usage": {
+              "prompt_tokens": 1094,
+              "completion_tokens": 30,
+              "total_tokens": 1124
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 2017.534,
+            "usage": {
+              "prompt_tokens": 1325,
+              "completion_tokens": 159,
+              "total_tokens": 1484
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1942.461,
+            "usage": {
+              "prompt_tokens": 1575,
+              "completion_tokens": 175,
+              "total_tokens": 1750
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1234.659,
+            "usage": {
+              "prompt_tokens": 1818,
+              "completion_tokens": 99,
+              "total_tokens": 1917
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5812,
+          "completion_tokens": 463,
+          "total_tokens": 6275
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.598,
+      "log_file": "T11.log"
+    },
+    {
+      "id": "T12",
+      "question": "华北地区的已支付销售额占全部已支付销售额的百分之多少？分母使用所有地区的已支付销售额，百分数保留两位小数。",
+      "expected": {
+        "share_percent": 26.59
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "华北地区已支付销售额为 848,286.85 元，全部地区已支付销售额合计为 3,189,679.40 元，华北占比为 26.59%。",
+        "evidence_query_ids": [
+          "query_9199bdbdb29942a9af04da2865ca6332",
+          "query_8f001b307ff342438f4f91b9d47284c8"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_xeQmhYkbV8ANYLHAkx9c2576",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.329
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_kXZvzSlLLucrCZjLGteT5116",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT o.region, SUM(oi.quantity * oi.unit_price_cents) AS amt_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.region\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "region",
+                  "amt_cents"
+                ],
+                "rows": [
+                  [
+                    "华东",
+                    75020585
+                  ],
+                  [
+                    "华北",
+                    84828685
+                  ],
+                  [
+                    "华南",
+                    80380450
+                  ],
+                  [
+                    "西南",
+                    78738220
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_9199bdbdb29942a9af04da2865ca6332"
+              }
+            },
+            "duration_ms": 1.411
+          },
+          {
+            "round": 3,
+            "tool_call_id": "call_00_o0ElAc6WX9u4cIJqZEog2826",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"params\": [], \"sql\": \"SELECT ROUND(100.0 * SUM(CASE WHEN o.region = '华北' THEN oi.quantity * oi.unit_price_cents ELSE 0 END) / SUM(oi.quantity * oi.unit_price_cents), 2) AS pct, SUM(CASE WHEN o.region = '华北' THEN oi.quantity * oi.unit_price_cents ELSE 0 END) AS north_cents, SUM(oi.quantity * oi.unit_price_cents) AS total_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid'\"}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "pct",
+                  "north_cents",
+                  "total_cents"
+                ],
+                "rows": [
+                  [
+                    26.59,
+                    84828685,
+                    318967940
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_8f001b307ff342438f4f91b9d47284c8"
+              }
+            },
+            "duration_ms": 1.241
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1506.557,
+            "usage": {
+              "prompt_tokens": 1089,
+              "completion_tokens": 26,
+              "total_tokens": 1115
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1162.35,
+            "usage": {
+              "prompt_tokens": 1316,
+              "completion_tokens": 106,
+              "total_tokens": 1422
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2519.515,
+            "usage": {
+              "prompt_tokens": 1521,
+              "completion_tokens": 188,
+              "total_tokens": 1709
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1574.053,
+            "usage": {
+              "prompt_tokens": 1799,
+              "completion_tokens": 97,
+              "total_tokens": 1896
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5725,
+          "completion_tokens": 417,
+          "total_tokens": 6142
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.86,
+      "log_file": "T12.log"
+    },
+    {
+      "id": "T13",
+      "question": "按商品类别分别列出2026年第一季度、第二季度已支付销售额（元）及第二季度相对第一季度的增长率，第一季度为基期，百分数保留两位，按类别名称升序。",
+      "expected": {
+        "rows": [
+          [
+            "办公设备",
+            666739.2,
+            621291.3,
+            -6.82
+          ],
+          [
+            "存储设备",
+            147287.25,
+            166637.0,
+            13.14
+          ],
+          [
+            "显示设备",
+            682520.55,
+            615090.6,
+            -9.88
+          ],
+          [
+            "电脑配件",
+            145951.85,
+            144161.65,
+            -1.23
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年已支付销售额按商品类别（一季度为基期，二季度相对一季度增长率，按类别名称升序）：办公设备 一季度666,739.20元、二季度621,291.30元、增长率-6.82%；存储设备 一季度147,287.25元、二季度166,637.00元、增长率13.14%；显示设备 一季度682,520.55元、二季度615,090.60元、增长率-9.88%；电脑配件 一季度145,951.85元、二季度144,161.65元、增长率-1.23%。仅统计已支付订单，金额由分换算为元；除存储设备增长外，其余类别二季度销售额均有所下降。",
+        "evidence_query_ids": [
+          "query_4021a16c5a5b4fa9be34de179a6f843b"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_zxWk03zRe0A548zugskU8629",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.403
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_PUlw8cIDYt9VdjeTpF0Q2903",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT p.category AS category,\\n round(sum(CASE WHEN o.order_date >= '2026-01-01' AND o.order_date < '2026-04-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END)/100.0, 2) AS q1_yuan,\\n round(sum(CASE WHEN o.order_date >= '2026-04-01' AND o.order_date < '2026-07-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END)/100.0, 2) AS q2_yuan,\\n CASE WHEN sum(CASE WHEN o.order_date >= '2026-01-01' AND o.order_date < '2026-04-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END) = 0 THEN NULL\\n ELSE round((sum(CASE WHEN o.order_date >= '2026-04-01' AND o.order_date < '2026-07-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END) - sum(CASE WHEN o.order_date >= '2026-01-01' AND o.order_date < '2026-04-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END))*100.0 / sum(CASE WHEN o.order_date >= '2026-01-01' AND o.order_date < '2026-04-01' THEN oi.quantity*oi.unit_price_cents ELSE 0 END), 2) END AS growth_pct\\nFROM orders o JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id\\nWHERE o.status = 'paid' AND o.order_date >= '2026-01-01' AND o.order_date < '2026-07-01'\\nGROUP BY p.category ORDER BY p.category ASC\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "category",
+                  "q1_yuan",
+                  "q2_yuan",
+                  "growth_pct"
+                ],
+                "rows": [
+                  [
+                    "办公设备",
+                    666739.2,
+                    621291.3,
+                    -6.82
+                  ],
+                  [
+                    "存储设备",
+                    147287.25,
+                    166637.0,
+                    13.14
+                  ],
+                  [
+                    "显示设备",
+                    682520.55,
+                    615090.6,
+                    -9.88
+                  ],
+                  [
+                    "电脑配件",
+                    145951.85,
+                    144161.65,
+                    -1.23
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_4021a16c5a5b4fa9be34de179a6f843b"
+              }
+            },
+            "duration_ms": 2.509
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1583.944,
+            "usage": {
+              "prompt_tokens": 1104,
+              "completion_tokens": 22,
+              "total_tokens": 1126
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 2444.988,
+            "usage": {
+              "prompt_tokens": 1327,
+              "completion_tokens": 460,
+              "total_tokens": 1787
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2972.144,
+            "usage": {
+              "prompt_tokens": 1954,
+              "completion_tokens": 349,
+              "total_tokens": 2303
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1646.903,
+            "usage": {
+              "prompt_tokens": 2370,
+              "completion_tokens": 196,
+              "total_tokens": 2566
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 6755,
+          "completion_tokens": 1027,
+          "total_tokens": 7782
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 8.66,
+      "log_file": "T13.log"
+    },
+    {
+      "id": "T14",
+      "question": "按月份统计2026年1月至6月的已支付订单笔数，按月份升序，并绘制柱状图。纵轴使用订单笔数。",
+      "expected": {
+        "rows": [
+          [
+            "2026-01",
+            145
+          ],
+          [
+            "2026-02",
+            120
+          ],
+          [
+            "2026-03",
+            136
+          ],
+          [
+            "2026-04",
+            133
+          ],
+          [
+            "2026-05",
+            138
+          ],
+          [
+            "2026-06",
+            128
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": true,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年1-6月已支付订单笔数：1月145笔、2月120笔、3月136笔、4月133笔、5月138笔、6月128笔，合计800笔，月均约133笔；1月最高、2月最低。柱状图已生成，纵轴为订单笔数，路径：F:\\AI_Agent_work\\my_second_agent\\eval_runs\\run_732ca98b0c5d\\outputs\\chart_2681ad4e2d3243139c3a938cd558653c.png",
+        "evidence_query_ids": [
+          "query_5b92d2be1f5945dca89693c5ad611e1c"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_hm6NWFyiORGmxyUeBr1M1764",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.34
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_fU0DIB2tSDr3f7Ce74I73540",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT strftime('%Y-%m', order_date) AS month, COUNT(*) AS paid_orders FROM orders WHERE status = 'paid' AND order_date >= ? AND order_date < ? GROUP BY month ORDER BY month ASC\", \"params\": [\"2026-01-01\", \"2026-07-01\"]}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "month",
+                  "paid_orders"
+                ],
+                "rows": [
+                  [
+                    "2026-01",
+                    145
+                  ],
+                  [
+                    "2026-02",
+                    120
+                  ],
+                  [
+                    "2026-03",
+                    136
+                  ],
+                  [
+                    "2026-04",
+                    133
+                  ],
+                  [
+                    "2026-05",
+                    138
+                  ],
+                  [
+                    "2026-06",
+                    128
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_5b92d2be1f5945dca89693c5ad611e1c"
+              }
+            },
+            "duration_ms": 0.793
+          },
+          {
+            "round": 3,
+            "tool_call_id": "call_00_aKyiym2tMooxX8o8jE2z3279",
+            "tool_name": "draw_chart",
+            "raw_arguments": "{\"query_id\": \"query_5b92d2be1f5945dca89693c5ad611e1c\", \"title\": \"2026年1-6月已支付订单笔数（笔）\"}",
+            "result": {
+              "ok": true,
+              "data": {
+                "chart_path": "F:\\AI_Agent_work\\my_second_agent\\eval_runs\\run_732ca98b0c5d\\outputs\\chart_2681ad4e2d3243139c3a938cd558653c.png",
+                "row_count": 6,
+                "query_id": "query_5b92d2be1f5945dca89693c5ad611e1c"
+              }
+            },
+            "duration_ms": 241.818
+          }
+        ],
+        "charts": [
+          "F:\\AI_Agent_work\\my_second_agent\\eval_runs\\run_732ca98b0c5d\\outputs\\chart_2681ad4e2d3243139c3a938cd558653c.png"
+        ],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1354.777,
+            "usage": {
+              "prompt_tokens": 1095,
+              "completion_tokens": 31,
+              "total_tokens": 1126
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1702.494,
+            "usage": {
+              "prompt_tokens": 1327,
+              "completion_tokens": 113,
+              "total_tokens": 1440
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1331.992,
+            "usage": {
+              "prompt_tokens": 1565,
+              "completion_tokens": 91,
+              "total_tokens": 1656
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 2088.043,
+            "usage": {
+              "prompt_tokens": 1771,
+              "completion_tokens": 357,
+              "total_tokens": 2128
+            }
+          },
+          {
+            "round": 5,
+            "duration_ms": 1526.668,
+            "usage": {
+              "prompt_tokens": 2195,
+              "completion_tokens": 167,
+              "total_tokens": 2362
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 5,
+          "usage_call_count": 5,
+          "complete": true,
+          "prompt_tokens": 7953,
+          "completion_tokens": 759,
+          "total_tokens": 8712
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 8.257,
+      "log_file": "T14.log"
+    },
+    {
+      "id": "T15",
+      "question": "查询订单V2O9999的订单状态。如果没有找到该订单，请明确说明不存在，不要将其当作一笔零金额订单。",
+      "expected": {
+        "rows": []
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "在 orders 表中没有找到订单 V2O9999，该订单不存在（查询结果为空），因此不存在可查的订单状态，也不能视为一笔零金额订单。",
+        "evidence_query_ids": [
+          "query_71908ce86bae4ccc81a7a399618f7f49"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_6mRpM1R0OmR9tPwi1rqI0332",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.335
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_aezo2FtQHXoyfRAkL5Ex2502",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT order_id, order_date, region, status FROM orders WHERE order_id = ?\", \"params\": [\"V2O9999\"]}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "order_id",
+                  "order_date",
+                  "region",
+                  "status"
+                ],
+                "rows": [],
+                "truncated": false,
+                "query_id": "query_71908ce86bae4ccc81a7a399618f7f49"
+              }
+            },
+            "duration_ms": 0.365
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1454.957,
+            "usage": {
+              "prompt_tokens": 1090,
+              "completion_tokens": 22,
+              "total_tokens": 1112
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1824.576,
+            "usage": {
+              "prompt_tokens": 1313,
+              "completion_tokens": 76,
+              "total_tokens": 1389
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1559.939,
+            "usage": {
+              "prompt_tokens": 1463,
+              "completion_tokens": 71,
+              "total_tokens": 1534
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 3866,
+          "completion_tokens": 169,
+          "total_tokens": 4035
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 4.848,
+      "log_file": "T15.log"
+    },
+    {
+      "id": "T16",
+      "question": "请统计某个月的已支付订单数量，但我还没确定年份和月份。先向我询问这两个条件，不要自行选择时间范围。",
+      "expected": {
+        "ask_for": [
+          "年份",
+          "月份"
+        ],
+        "must_not_assume_scope": true
+      },
+      "expected_status": "needs_clarification",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "needs_clarification",
+        "answer": "好的，我不会自行选择时间范围。请您补充两个条件：1）年份（如2023）；2）月份（1-12）。收到后我将统计该月已支付（status='paid'）的订单数量。",
+        "evidence_query_ids": [],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_rndKB1w6a92w7U3TfpOy8642",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.444
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1306.602,
+            "usage": {
+              "prompt_tokens": 1089,
+              "completion_tokens": 22,
+              "total_tokens": 1111
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1441.792,
+            "usage": {
+              "prompt_tokens": 1312,
+              "completion_tokens": 65,
+              "total_tokens": 1377
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 2,
+          "usage_call_count": 2,
+          "complete": true,
+          "prompt_tokens": 2401,
+          "completion_tokens": 87,
+          "total_tokens": 2488
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 2.756,
+      "log_file": "T16.log"
+    },
+    {
+      "id": "T17",
+      "question": "2026年7月已支付销售额相比6月增长了百分之多少？没有订单的月份金额按0计算，以6月为基期，百分数保留两位。",
+      "expected": {
+        "base_yuan": 534742.0,
+        "current_yuan": 0.0,
+        "growth_percent": -100.0
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年6月已支付销售额为 534,742.00 元；2026年7月没有任何已支付订单，按0元计算。以6月为基期，7月销售额相比6月增长 -100.00%（即下降100.00%）。",
+        "evidence_query_ids": [
+          "query_b929646f83834960b6046248b95fd00b",
+          "query_835bebf9022146b8bbdd70992f9f0f1d"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_LLLc18MjLsAVZwZJMwPv8020",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.333
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_TrhLXHFNWBcYoRsydplA9773",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT strftime('%Y-%m', o.order_date) AS ym,\\n       SUM(oi.quantity * oi.unit_price_cents) AS amt_cents\\nFROM orders o\\nJOIN order_items oi ON oi.order_id = o.order_id\\nWHERE o.status = 'paid'\\n  AND o.order_date >= '2026-06-01' AND o.order_date < '2026-08-01'\\nGROUP BY ym\\nORDER BY ym\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "ym",
+                  "amt_cents"
+                ],
+                "rows": [
+                  [
+                    "2026-06",
+                    53474200
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_b929646f83834960b6046248b95fd00b"
+              }
+            },
+            "duration_ms": 1.336
+          },
+          {
+            "round": 3,
+            "tool_call_id": "call_00_zv5qaVeAVIt544kTZBzw3944",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"params\": [], \"sql\": \"SELECT round((0.0 - 53474200) / 53474200 * 100, 2) AS growth_pct\"}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "growth_pct"
+                ],
+                "rows": [
+                  [
+                    -100.0
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_835bebf9022146b8bbdd70992f9f0f1d"
+              }
+            },
+            "duration_ms": 0.292
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1189.734,
+            "usage": {
+              "prompt_tokens": 1097,
+              "completion_tokens": 26,
+              "total_tokens": 1123
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1866.146,
+            "usage": {
+              "prompt_tokens": 1324,
+              "completion_tokens": 150,
+              "total_tokens": 1474
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1556.699,
+            "usage": {
+              "prompt_tokens": 1550,
+              "completion_tokens": 81,
+              "total_tokens": 1631
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1696.79,
+            "usage": {
+              "prompt_tokens": 1703,
+              "completion_tokens": 114,
+              "total_tokens": 1817
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5674,
+          "completion_tokens": 371,
+          "total_tokens": 6045
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.32,
+      "log_file": "T17.log"
+    },
+    {
+      "id": "T18",
+      "question": "2026年1月已支付销售额相比2025年12月的增长率是多少？没有订单的月份金额按0，若基期金额为0，请说明无法按该公式计算，不要给出百分比。",
+      "expected": {
+        "base_yuan": 0.0,
+        "current_yuan": 539628.25,
+        "growth_percent": null
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2025年12月已支付销售额为0.00元（该月无已支付订单，按规则计为0）；2026年1月已支付销售额为539,628.25元。由于基期（2025年12月）金额为0，增长率公式 (本期-基期)/基期 的分母为0，因此无法按该公式计算增长率，故不给出百分比。",
+        "evidence_query_ids": [
+          "query_0070c2ec2bea4cbaaffac69d237010ab",
+          "query_47575f6debfb4d3388bbcb91319987e5"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_7q8yfrs2bHD7OTHV05aK7317",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.326
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_lrvChgsao01zf0SeSrWo0686",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT strftime('%Y-%m', o.order_date) AS ym, SUM(oi.quantity * oi.unit_price_cents) AS amount_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND ((o.order_date >= '2025-12-01' AND o.order_date < '2026-01-01') OR (o.order_date >= '2026-01-01' AND o.order_date < '2026-02-01')) GROUP BY ym ORDER BY ym\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "ym",
+                  "amount_cents"
+                ],
+                "rows": [
+                  [
+                    "2026-01",
+                    53962825
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_0070c2ec2bea4cbaaffac69d237010ab"
+              }
+            },
+            "duration_ms": 1.822
+          },
+          {
+            "round": 3,
+            "tool_call_id": "call_00_a6YXaUOk8uSNGD3iR9Jt6643",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"params\": [\"2025-12-01\", \"2026-01-01\"], \"sql\": \"SELECT COUNT(*) AS cnt, COALESCE(SUM(oi.quantity * oi.unit_price_cents), 0) AS amount_cents FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'paid' AND o.order_date >= ? AND o.order_date < ?\"}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "cnt",
+                  "amount_cents"
+                ],
+                "rows": [
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_47575f6debfb4d3388bbcb91319987e5"
+              }
+            },
+            "duration_ms": 1.08
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1331.572,
+            "usage": {
+              "prompt_tokens": 1105,
+              "completion_tokens": 29,
+              "total_tokens": 1134
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1917.54,
+            "usage": {
+              "prompt_tokens": 1335,
+              "completion_tokens": 209,
+              "total_tokens": 1544
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 1541.311,
+            "usage": {
+              "prompt_tokens": 1623,
+              "completion_tokens": 135,
+              "total_tokens": 1758
+            }
+          },
+          {
+            "round": 4,
+            "duration_ms": 1925.464,
+            "usage": {
+              "prompt_tokens": 1831,
+              "completion_tokens": 142,
+              "total_tokens": 1973
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 4,
+          "usage_call_count": 4,
+          "complete": true,
+          "prompt_tokens": 5894,
+          "completion_tokens": 515,
+          "total_tokens": 6409
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 6.728,
+      "log_file": "T18.log"
+    },
+    {
+      "id": "T19",
+      "question": "2026年第二季度，按地区和商品类别两个维度统计已支付销售额（元），按地区名称升序、类别名称升序排列。",
+      "expected": {
+        "rows": [
+          [
+            "华东",
+            "办公设备",
+            135324.3
+          ],
+          [
+            "华东",
+            "存储设备",
+            37967.15
+          ],
+          [
+            "华东",
+            "显示设备",
+            154868.55
+          ],
+          [
+            "华东",
+            "电脑配件",
+            36752.05
+          ],
+          [
+            "华北",
+            "办公设备",
+            153427.5
+          ],
+          [
+            "华北",
+            "存储设备",
+            39302.45
+          ],
+          [
+            "华北",
+            "显示设备",
+            165034.05
+          ],
+          [
+            "华北",
+            "电脑配件",
+            33518.95
+          ],
+          [
+            "华南",
+            "办公设备",
+            170400.75
+          ],
+          [
+            "华南",
+            "存储设备",
+            50701.0
+          ],
+          [
+            "华南",
+            "显示设备",
+            169269.25
+          ],
+          [
+            "华南",
+            "电脑配件",
+            35093.9
+          ],
+          [
+            "西南",
+            "办公设备",
+            162138.75
+          ],
+          [
+            "西南",
+            "存储设备",
+            38666.4
+          ],
+          [
+            "西南",
+            "显示设备",
+            125918.75
+          ],
+          [
+            "西南",
+            "电脑配件",
+            38796.75
+          ]
+        ]
+      },
+      "expected_status": "completed",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "completed",
+        "answer": "2026年第二季度（4月1日—6月30日）已支付销售额按地区与商品类别的交叉统计如下（单位：元）：\n\n华东：办公设备 135,324.30；存储设备 37,967.15；显示设备 154,868.55；电脑配件 36,752.05\n小计：364,912.05\n\n华北：办公设备 153,427.50；存储设备 39,302.45；显示设备 165,034.05；电脑配件 33,518.95\n小计：391,282.95\n\n华南：办公设备 170,400.75；存储设备 50,701.00；显示设备 169,269.25；电脑配件 35,093.90\n小计：425,464.90\n\n西南：办公设备 162,138.75；存储设备 38,666.40；显示设备 125,918.75；电脑配件 38,796.75\n小计：365,520.65\n\n合计：1,547,180.55 元。其中，华南地区销售额最高；在各类别中，显示设备和办公设备贡献了主要销售额。",
+        "evidence_query_ids": [
+          "query_a25f20e69bfa497aa81b4a5c9fd97370"
+        ],
+        "steps": [
+          {
+            "round": 1,
+            "tool_call_id": "call_00_5KaYs6FEe7KnbUUkJIxC5450",
+            "tool_name": "get_schema",
+            "raw_arguments": "{}",
+            "result": {
+              "ok": true,
+              "data": {
+                "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+                "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+                "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+              }
+            },
+            "duration_ms": 0.524
+          },
+          {
+            "round": 2,
+            "tool_call_id": "call_00_slAAnjMEWJPzgAsUV2gY2097",
+            "tool_name": "run_sql",
+            "raw_arguments": "{\"sql\": \"SELECT o.region AS region, p.category AS category, ROUND(SUM(oi.quantity * oi.unit_price_cents) / 100.0, 2) AS amount_yuan FROM orders o JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id WHERE o.status = 'paid' AND o.order_date >= '2026-04-01' AND o.order_date < '2026-07-01' GROUP BY o.region, p.category ORDER BY o.region ASC, p.category ASC\", \"params\": []}",
+            "result": {
+              "ok": true,
+              "data": {
+                "columns": [
+                  "region",
+                  "category",
+                  "amount_yuan"
+                ],
+                "rows": [
+                  [
+                    "华东",
+                    "办公设备",
+                    135324.3
+                  ],
+                  [
+                    "华东",
+                    "存储设备",
+                    37967.15
+                  ],
+                  [
+                    "华东",
+                    "显示设备",
+                    154868.55
+                  ],
+                  [
+                    "华东",
+                    "电脑配件",
+                    36752.05
+                  ],
+                  [
+                    "华北",
+                    "办公设备",
+                    153427.5
+                  ],
+                  [
+                    "华北",
+                    "存储设备",
+                    39302.45
+                  ],
+                  [
+                    "华北",
+                    "显示设备",
+                    165034.05
+                  ],
+                  [
+                    "华北",
+                    "电脑配件",
+                    33518.95
+                  ],
+                  [
+                    "华南",
+                    "办公设备",
+                    170400.75
+                  ],
+                  [
+                    "华南",
+                    "存储设备",
+                    50701.0
+                  ],
+                  [
+                    "华南",
+                    "显示设备",
+                    169269.25
+                  ],
+                  [
+                    "华南",
+                    "电脑配件",
+                    35093.9
+                  ],
+                  [
+                    "西南",
+                    "办公设备",
+                    162138.75
+                  ],
+                  [
+                    "西南",
+                    "存储设备",
+                    38666.4
+                  ],
+                  [
+                    "西南",
+                    "显示设备",
+                    125918.75
+                  ],
+                  [
+                    "西南",
+                    "电脑配件",
+                    38796.75
+                  ]
+                ],
+                "truncated": false,
+                "query_id": "query_a25f20e69bfa497aa81b4a5c9fd97370"
+              }
+            },
+            "duration_ms": 1.625
+          }
+        ],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1367.022,
+            "usage": {
+              "prompt_tokens": 1092,
+              "completion_tokens": 28,
+              "total_tokens": 1120
+            }
+          },
+          {
+            "round": 2,
+            "duration_ms": 1407.624,
+            "usage": {
+              "prompt_tokens": 1321,
+              "completion_tokens": 175,
+              "total_tokens": 1496
+            }
+          },
+          {
+            "round": 3,
+            "duration_ms": 2248.043,
+            "usage": {
+              "prompt_tokens": 1776,
+              "completion_tokens": 297,
+              "total_tokens": 2073
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 3,
+          "usage_call_count": 3,
+          "complete": true,
+          "prompt_tokens": 4189,
+          "completion_tokens": 500,
+          "total_tokens": 4689
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 5.033,
+      "log_file": "T19.log"
+    },
+    {
+      "id": "T20",
+      "question": "请按我选定的地区统计2026年第二季度已支付销售额，地区我会下一条再告诉你。请先向我确认地区，不要先按全部地区统计。",
+      "expected": {
+        "ask_for": [
+          "地区"
+        ],
+        "must_not_assume_scope": true
+      },
+      "expected_status": "needs_clarification",
+      "requires_chart": false,
+      "review": {
+        "passed": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "needs_clarification",
+        "answer": "请提供您要统计的地区（订单表中的地区字段值，可多个）。确认地区后我会统计2026年第二季度已支付销售额。",
+        "evidence_query_ids": [],
+        "steps": [],
+        "charts": [],
+        "model_calls": [
+          {
+            "round": 1,
+            "duration_ms": 1545.531,
+            "usage": {
+              "prompt_tokens": 1097,
+              "completion_tokens": 48,
+              "total_tokens": 1145
+            }
+          }
+        ],
+        "usage_summary": {
+          "model_call_count": 1,
+          "usage_call_count": 1,
+          "complete": true,
+          "prompt_tokens": 1097,
+          "completion_tokens": 48,
+          "total_tokens": 1145
+        }
+      },
+      "execution_status": "completed",
+      "elapsed_seconds": 1.552,
+      "log_file": "T20.log"
+    }
+  ]
+}

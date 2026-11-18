@@ -1,0 +1,66 @@
+第 1 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_6SwuAeqmgqEOiTX7XhEt0065",
+      "type": "function",
+      "function": {
+        "name": "get_schema",
+        "arguments": "{}"
+      }
+    }
+  ]
+}
+工具调用成功： get_schema
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "order_items": "CREATE TABLE order_items (\n    item_id INTEGER PRIMARY KEY,\n    order_id TEXT NOT NULL,\n    product_id TEXT NOT NULL,\n    quantity INTEGER NOT NULL CHECK(quantity > 0),\n    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents >= 0),\n    FOREIGN KEY (order_id) REFERENCES orders(order_id),\n    FOREIGN KEY (product_id) REFERENCES products(product_id)\n)",
+    "orders": "CREATE TABLE orders (\n    order_id TEXT PRIMARY KEY NOT NULL,\n    order_date TEXT NOT NULL,\n    region TEXT NOT NULL,\n    status TEXT NOT NULL CHECK(status IN ('paid', 'cancelled'))\n)",
+    "products": "CREATE TABLE products (\n    product_id TEXT PRIMARY KEY NOT NULL,\n    product_name TEXT NOT NULL,\n    category TEXT NOT NULL\n)"
+  }
+}
+第 2 轮模型返回：
+{
+  "role": "assistant",
+  "content": "",
+  "tool_calls": [
+    {
+      "index": 0,
+      "id": "call_00_PVBSMwMuG1Fslq3qKGKO0718",
+      "type": "function",
+      "function": {
+        "name": "run_sql",
+        "arguments": "{\"sql\": \"SELECT o.order_id, SUM(i.quantity * i.unit_price_cents) AS amt_cents FROM orders o JOIN order_items i ON i.order_id = o.order_id WHERE o.status = 'paid' GROUP BY o.order_id ORDER BY amt_cents DESC, o.order_id ASC LIMIT 1\", \"params\": []}"
+      }
+    }
+  ]
+}
+工具调用成功： run_sql
+工具反馈：
+{
+  "ok": true,
+  "data": {
+    "columns": [
+      "order_id",
+      "amt_cents"
+    ],
+    "rows": [
+      [
+        "V2O0212",
+        1543390
+      ]
+    ],
+    "truncated": false,
+    "query_id": "query_cff1c29c6cf849a784b921bef1f4110b"
+  }
+}
+第 3 轮模型返回：
+{
+  "role": "assistant",
+  "content": "{\"status\":\"completed\",\"answer\":\"已支付订单中明细金额最高的是订单 V2O0212，明细金额合计 15,433.90 元（1,543,390 分）。\",\"evidence_query_ids\":[\"query_cff1c29c6cf849a784b921bef1f4110b\"]}"
+}
