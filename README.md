@@ -7,7 +7,7 @@
 ## 版本与验证范围
 
 - 第一版基线：`dbf2804`。下方归档的十题评测结果与耗时对应这一版本。
-- 第二版开发中：已加入 Pydantic 统一工具参数校验和任务内查询结果存储。模型向绘图工具传入 query_id，执行层取回对应数据，绘图函数直接使用该结果。
+- 第二版：已加入 Pydantic 统一工具参数校验和任务内查询结果存储。模型向绘图工具传入 query_id，执行层取回对应数据，绘图函数直接使用该结果。
 - 已加入任务结束状态与证据检查：区分 completed、needs_clarification、failed；对需要查询的完成结果，检查引用编号是否存在、结果是否被截断。
 - 执行流程已迁移为 LangGraph 的 model、tools、validate 三个节点，支持条件路由、任务内查询快照传递与模型调用次数限制。
 - LangGraph 迁移已通过离线回归检查和一次真实模型类别销售额绘图验收。
@@ -101,7 +101,37 @@ flowchart TD
 | [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 选择成对输入、校验快照、恢复独立评测库、采集结果与报告元数据 |
 | [eval_manifest.py](eval_manifest.py) | 记录评测核心代码、采集与审核脚本、依赖声明的指纹 |
 | [summarize_eval.py](summarize_eval.py) | 检查审核记录与预期业务状态，合并结论并生成汇总 |
+| [run_checks.py](run_checks.py) | 在临时项目副本中统一执行自动回归检查，汇总失败与超时 |
+| [.github/workflows/offline-checks.yml](.github/workflows/offline-checks.yml) | GitHub Actions 云端安装依赖、检查兼容性并执行同一回归入口 |
 | [requirements.txt](requirements.txt)、[requirements-dev.txt](requirements-dev.txt)、[.env.example](.env.example) | 运行依赖、开发检查依赖与配置模板 |
+
+## 统一离线回归与持续集成
+
+在项目根目录安装开发依赖后，可以先列出检查清单，再统一执行：
+
+```powershell
+.\venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\venv\Scripts\python.exe -X utf8 run_checks.py --list --include-web
+.\venv\Scripts\python.exe -X utf8 run_checks.py --include-web
+```
+
+入口默认运行 25 个 Python 检查脚本，`--include-web` 再加入 1 个 Node.js 网页检查脚本。网页检查只使用 Node.js 内置模块。
+本地已完成一次全量回归：26/26 通过，总耗时 39.09 秒；该耗时为本次检查运行记录。
+
+执行链路为：准备临时项目与固定快照数据库 → 通过当前 Python 解释器分别启动检查脚本 → 收集退出码与输出 → 汇总结果并清理临时文件。
+入口只复制源码、依赖声明、固定数据与网页文件，使用临时业务库和临时运行产物；检查使用预设模型响应，不请求真实模型 API。
+
+- 全部检查退出码为 0 时，入口返回 0；任一检查失败或超时，入口返回 1。
+- 某项失败后会继续执行其他检查，显示失败脚本的输出；单个脚本默认最多运行 60 秒。
+- `--only check_query_id.py` 可以单独选一项，`--only` 可重复使用；`--verbose` 可以同时显示通过脚本的完整输出。
+- 旧教学诊断 `check_sql_access.py`、`check_timeout.py`、`check_tool_feedback.py` 主要用于人工观察输出，未计入自动回归数量。
+- 历史保留集的冻结检查 `check_eval_holdout.py` 仍单独保留，用于核对对应冻结版本；后续版本的普通回归不改写历史冻结指纹。
+
+[工作流配置](.github/workflows/offline-checks.yml) 支持推送到 `main`、面向 `main` 的 Pull Request 和手动触发。
+工作流在 `windows-2025` 上配置 Python 3.12 与 Node 22，按 `requirements-dev.txt` 安装依赖、执行 `pip check`，再运行 `python -X utf8 run_checks.py --include-web`；整项任务上限为 15 分钟。
+工作流按 Windows 环境验证当前实现，API Key 无需配置。首次云端执行结果以仓库 Actions 页面为准。
+
+自动回归验证已有行为与边界约定，真实业务回答的核验结果分别记录在下方开发集与保留集归档中。
 
 ## 本地启动
 
