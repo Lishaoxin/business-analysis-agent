@@ -12,6 +12,9 @@ def load_reviewed_report(path):
     review = json.loads(
         path.with_name("review.json").read_text(encoding="utf-8")
     )
+    report_version = report.get("report_version", 1)
+    if type(report_version) is not int or report_version not in (1, 2):
+        raise ValueError("不支持的报告结构版本")
     if review["version"] != 1:
         raise ValueError("不支持的审核文件版本")
     if content_hash(report) != review["source_report_sha256"]:
@@ -36,8 +39,21 @@ def load_reviewed_report(path):
             raise ValueError("passed必须是true或false")
         if not isinstance(item["notes"], str) or not item["notes"].strip():
             raise ValueError("每题必须填写审核说明")
+        expected_status = row.get("expected_status", "completed")
+        if expected_status not in ("completed", "needs_clarification", "failed"):
+            raise ValueError("expected_status不受支持")
         if item["passed"] and row["execution_status"] != "completed":
             raise ValueError("执行失败的任务不能标记为通过")
+        if item["passed"]:
+            result = row.get("result", {})
+            # 旧版报告没有业务status字段，保留其原有人工核验方式。
+            if report_version >= 2 or "status" in result:
+                actual_status = result.get("status")
+                if actual_status != expected_status:
+                    raise ValueError(
+                        f"题目{row['id']}预期业务状态为{expected_status}，"
+                        f"实际为{actual_status}，不能标记为通过"
+                    )
         if item["passed"] and row.get("requires_chart"):
             if not row.get("result", {}).get("charts"):
                 raise ValueError("要求绘图的任务缺少图表")
@@ -84,7 +100,7 @@ def main():
         "# 固定任务评测汇总", "",
         f"- 模型：{report['requested_model']}",
         f"- 核验通过：{stats['passed']}/{stats['total']}（{stats['pass_rate_percent']}%）",
-        f"- 执行完成：{stats['execution_completed']}/{stats['total']}",
+        f"- 函数正常返回：{stats['execution_completed']}/{stats['total']}",
         f"- 平均单题耗时：{stats['mean_seconds']} 秒",
         f"- 单题耗时中位数：{stats['median_seconds']} 秒",
         f"- 数据指纹：{report['dataset_sha256']}",

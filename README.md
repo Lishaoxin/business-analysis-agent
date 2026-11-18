@@ -20,6 +20,7 @@
 - 已记录每轮模型请求及每次工具调用的分项耗时，并通过离线检查和一次真实 JSON 请求核验。
 - 已保存模型服务返回的逐轮 Token 用量并生成本次任务汇总；用量缺失时标记为未知，已有离线检查和真实 JSON 请求核验记录。
 - 已接入每问默认 30 秒的时间预算，在模型、工具和结束校验边界检查；超限时保留已有记录并返回 failed，已完成离线检查和真实正常路径验收。
+- 评测报告已记录核心代码清单、运行环境和明确的执行上限；审核时检查实际业务状态是否符合题目预期，已通过离线检查。
 - 第二版完整业务题集评测将在后续进行。
 
 ## 执行链路
@@ -92,7 +93,8 @@ flowchart TD
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 固定数据快照、10 个任务和标准结果 |
 | [eval_data.py](eval_data.py)、[eval_agent.py](eval_agent.py) | 校验快照、恢复独立评测库、采集结果 |
-| [summarize_eval.py](summarize_eval.py) | 合并审核结论并生成汇总 |
+| [eval_manifest.py](eval_manifest.py) | 记录评测核心代码、采集与审核脚本、依赖声明的指纹 |
+| [summarize_eval.py](summarize_eval.py) | 检查审核记录与预期业务状态，合并结论并生成汇总 |
 | [requirements.txt](requirements.txt)、[requirements-dev.txt](requirements-dev.txt)、[.env.example](.env.example) | 运行依赖、开发检查依赖与配置模板 |
 
 ## 本地启动
@@ -485,15 +487,36 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 ## 固定任务评测
 
 评测读取仓库中的 `eval_fixture_v1.json`，恢复独立数据库，避免业务库后续新增订单改变评测数据。
-报告记录数据、题集以及 `agent.py`、`tools.py` 的代码指纹。
-评测脚本仅将每题的 `question` 字段传给 Agent，标准结果 `expected` 留在本地核对。
+当前固定快照包含 6 笔订单、3 种商品、9 条明细，题集为 `eval_cases_v1.json` 中的 10 题。
+每题独立调用 Agent，不传会话编号。脚本只传入问题与明确的执行上限，标准结果 `expected` 和预期业务状态 `expected_status` 留在本地报告中用于审核。
 `freeze_eval_data.py` 用于制作数据快照，当前 v1 快照已提供。
 
-先执行离线检查：
+新采集报告使用 `report_version: 2`，记录以下信息：
+
+| 信息 | 报告内容 |
+| --- | --- |
+| 固定输入 | 数据快照与题集各自的 SHA-256 指纹 |
+| 代码清单 | `code_manifest` 保存 18 个声明文件的逐文件指纹和总指纹，包含核心执行代码、评测与审核脚本、依赖声明；完整清单见 [eval_manifest.py](eval_manifest.py) |
+| 环境 | Python、SQLite、操作系统信息，以及当前环境实际安装的包名与版本 |
+| 执行上限 | 显式传入并记录 `max_rounds: 6`、`max_seconds: 30.0`；时间预算仍按前文所述在执行边界检查 |
+| 每题记录 | 本地标准结果、预期状态、函数执行状态、Agent 返回结果、耗时与日志文件名；返回结果保留逐轮模型用量和工具记录 |
+
+代码指纹按 UTF-8 文本计算，统一 BOM 和换行；修改代码文本或依赖声明会改变指纹，必需文件缺失时直接报错。
+原有 `agent_code_sha256`、`tools_code_sha256` 字段继续保留。
+报告结构版本 2、代码清单格式版本 1、数据与题集版本 1 分别描述不同内容。
+
+先执行准备检查与三个离线检查：
 
 ```powershell
-.\venv\Scripts\python.exe -X utf8 eval_data.py
+.\venv\Scripts\python.exe -X utf8 eval_agent.py --case all --check-only
+.\venv\Scripts\python.exe -X utf8 check_eval_manifest.py
+.\venv\Scripts\python.exe -X utf8 check_eval_report_metadata.py
+.\venv\Scripts\python.exe -X utf8 check_eval_review.py
 ```
+
+`--check-only` 在内存数据库中检查快照能否恢复，并检查报告信息；不启动 Agent，也不创建评测批次目录。
+三个检查分别验证代码清单、报告采集和审核规则，使用临时文件、临时数据库或预设 Agent，均不请求真实模型服务。
+检查通过说明评测流程按约定工作，通过率需要完成真实采集和人工审核后统计。
 
 单题试跑可使用 `--case E01`；完整采集使用：
 
@@ -507,8 +530,9 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 
 1. 对照每题的 `expected`，核对成功 SQL 结果、最终回答、统计口径和要求的图片。
 2. 在该批次目录创建 `review.json`，格式可参考[已归档审核记录](eval_runs/run_0d6a458fdeda/review.json)。
-3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`；`execution_status=completed` 表示调用正常返回，`result.status` 是 Agent 的任务状态，是否答对仍需核验。
-4. `source_report_sha256` 应填写本次原始报告的内容指纹，不能直接沿用其他批次的指纹。
+3. 为该批次每个题目填写真实的 `passed` 布尔值与非空 `notes`。`execution_status=completed` 只表示函数正常返回；`result.status` 才是 Agent 的业务状态。
+4. 新报告中，标记通过必须满足函数正常返回、实际业务状态等于 `expected_status`。现有 10 题默认预期 `completed`；后续澄清或失败类题目可明确指定 `needs_clarification` 或 `failed`。状态匹配后仍需核对答案、SQL 和图表，程序不会自动判定内容正确。
+5. `source_report_sha256` 应填写本次原始报告的内容指纹，不能直接沿用其他批次的指纹。
 
 将下方变量替换成终端打印的本次真实报告路径，再计算指纹：
 
@@ -523,7 +547,8 @@ $reportPath = ".\eval_runs\run_替换为本次目录\report.json"
 .\venv\Scripts\python.exe -X utf8 summarize_eval.py --report $reportPath
 ```
 
-生成 `report_reviewed.json` 与 `summary.md`。汇总按审核结论统计通过数，原始运行报告保留。
+生成 `report_reviewed.json` 与 `summary.md`。汇总按审核结论统计通过数，“函数正常返回”单独计数，原始运行报告保留。
+第一版归档没有业务状态字段，继续按原人工核验方式读取；已有明确业务状态的记录仍需符合预期。
 
 ### 已归档验收结果
 
