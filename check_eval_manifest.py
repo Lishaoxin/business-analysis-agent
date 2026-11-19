@@ -16,13 +16,13 @@ def check():
             (root / filename).write_bytes(f"# fixture: {filename}\nvalue = 1\n".encode("utf-8"))
 
         baseline = build_eval_manifest(root)
-        assert len(baseline["files"]) == len(EVAL_SOURCE_FILES) == 18
+        assert len(baseline["files"]) == len(EVAL_SOURCE_FILES) == 19
         assert set(baseline["files"]) == set(EVAL_SOURCE_FILES)
         assert len(baseline["code_sha256"]) == 64
         assert baseline == build_eval_manifest(root)
-        print("18个声明文件均被记录，相同内容重复计算结果一致")
+        print("19个声明文件均被记录，相同内容重复计算结果一致")
 
-        for filename in ["graph_agent.py", "eval_agent.py", "summarize_eval.py", "requirements.txt"]:
+        for filename in ["app_paths.py", "graph_agent.py", "eval_agent.py", "summarize_eval.py", "requirements.txt"]:
             path = root / filename
             original = path.read_bytes()
             path.write_bytes(original + b"# changed\n")

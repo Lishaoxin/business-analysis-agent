@@ -24,6 +24,7 @@
 - 已准备第二版固定快照（1000 笔订单、12 种商品、2481 条明细）和 20 道开发题，标准答案与参考查询、输入选择和报告记录已通过离线检查。
 - 第二版开发集已完成一次真实采集和逐题核验：20/20，平均单题耗时 5.296 秒，模型请求共 75 次；报告、审核依据、日志与图片见下方归档。
 - 第二版保留集已完成首次真实采集和逐题核验：查询题 18/18、条件澄清题 2/2，合计 20/20，平均单题耗时 5.525 秒；12 个 Agent 核心文件与冻结版本一致，详见下方独立归档。
+- Docker Compose 提供本机启动方式。已实际验证容器重建后复用业务库，同一会话能继续追问，旧图表仍可访问。
 
 ## 执行链路
 
@@ -94,6 +95,8 @@ flowchart TD
 | [run_trace.py](run_trace.py)、[trace_logging.py](trace_logging.py) | 本次分析的追踪编号、累计耗时与 JSON 追踪摘要 |
 | [query_store.py](query_store.py) | 查询结果快照的存取与恢复 |
 | [main.py](main.py)、[index.html](index.html) | HTTP 接口与网页 |
+| [app_paths.py](app_paths.py) | 从环境变量或源码目录确定业务库、会话库及图表的保存位置 |
+| [Dockerfile](Dockerfile)、[compose.yaml](compose.yaml)、[container_start.py](container_start.py) | 构建运行镜像、挂载数据卷、检查服务状态和准备演示数据库 |
 | [eval_fixture_v1.json](eval_fixture_v1.json)、[eval_cases_v1.json](eval_cases_v1.json) | 第一版固定快照、10 个任务和标准结果 |
 | [eval_fixture_v2.json](eval_fixture_v2.json)、[eval_cases_v2_dev.json](eval_cases_v2_dev.json) | 第二版固定快照、20 道开发题及本地标准答案与参考查询 |
 | [eval_cases_v2_test.json](eval_cases_v2_test.json)、[check_eval_holdout.py](check_eval_holdout.py) | 20 道保留题、冻结核心指纹、标准答案与澄清审核要点的离线检查 |
@@ -115,8 +118,7 @@ flowchart TD
 .\venv\Scripts\python.exe -X utf8 run_checks.py --include-web
 ```
 
-入口默认运行 25 个 Python 检查脚本，`--include-web` 再加入 1 个 Node.js 网页检查脚本。网页检查只使用 Node.js 内置模块。
-本地已完成一次全量回归：26/26 通过，总耗时 39.09 秒；该耗时为本次检查运行记录。
+入口默认运行 27 个 Python 检查脚本。`--include-web` 加入 1 个使用 Node.js 内置模块的网页检查，共 28 项。新增的路径与启动检查验证自定义目录读写、会话恢复、首次初始化和已有数据复用。本次容器化版本在 Windows 临时项目副本中通过全部 28 项检查。
 
 执行链路为：准备临时项目与固定快照数据库 → 通过当前 Python 解释器分别启动检查脚本 → 收集退出码与输出 → 汇总结果并清理临时文件。
 入口只复制源码、依赖声明、固定数据与网页文件，使用临时业务库和临时运行产物；检查使用预设模型响应，不请求真实模型 API。
@@ -129,14 +131,44 @@ flowchart TD
 
 [工作流配置](.github/workflows/offline-checks.yml) 支持推送到 `main`、面向 `main` 的 Pull Request 和手动触发。
 工作流在 `windows-2025` 上配置 Python 3.12 与 Node 22，按 `requirements-dev.txt` 安装依赖、执行 `pip check`，再运行 `python -X utf8 run_checks.py --include-web`；整项任务上限为 15 分钟。
-工作流按 Windows 环境验证当前实现，API Key 无需配置。首次云端执行结果以仓库 Actions 页面为准。
+工作流使用 Windows 环境，检查时无需 API Key。首次云端运行（`17cdfc0`）通过当时的 26 项检查。当前提交的运行结果见 [Actions](https://github.com/Lishaoxin/business-analysis-agent/actions)。
 
 自动回归验证已有行为与边界约定，真实业务回答的核验结果分别记录在下方开发集与保留集归档中。
+
+## Docker Compose 启动
+
+打开 Docker Desktop 并使用 Linux 容器。在项目根目录用以下命令准备 `.env`。已有文件时会沿用你的配置。
+
+```powershell
+if (-not (Test-Path -LiteralPath .\.env)) {
+    Copy-Item -LiteralPath .\.env.example -Destination .\.env
+}
+```
+
+新建的 `.env` 需要先把占位值换成自己的 Key。配置完成后启动服务：
+
+```powershell
+docker compose config --quiet
+docker compose up --build --wait
+docker compose ps
+```
+
+服务健康后，打开 [http://127.0.0.1:8003/](http://127.0.0.1:8003/)。Compose 把本机 8003 端口映射到容器 8001 端口，健康检查访问容器内首页。查看启动日志可用 `docker compose logs --tail 20 agent`。
+
+镜像构建时生成 6 笔订单的演示库模板。容器首次启动时，如果卷里还没有 `business.db`，就从模板创建。如果业务库已经存在，启动脚本会先验证再复用。Compose 将 `AGENT_DATA_DIR` 设为 `/app/data`，并把 `agent-data` 命名卷挂到这个目录。业务库、会话库和图表分别保存在 `/app/data/business.db`、`/app/data/sessions.db` 和 `/app/data/outputs/`。脱离 Docker 直接运行时，`AGENT_DATA_DIR` 未设置会使用项目目录。
+
+容器重建实测中，先查询 2026 年 9 月已支付销售额并生成柱状图，得到 1400 元。执行 `docker compose up --force-recreate --wait` 后，容器 ID 变化，启动日志显示复用业务库。重建前生成的图片仍返回 HTTP 200，原标签页继续追问 10 月得到 1700 元。
+
+```powershell
+docker compose down
+```
+
+上述命令停止服务并保留命名卷。仅在明确要删除全部演示数据库、会话和图表时才使用 `docker compose down -v`。[Docker Compose down](https://docs.docker.com/reference/cli/docker/compose/down/)
 
 ## 本地启动
 
 已验收环境：Windows、Python 3.12.0、SQLite 3.42.0。
-绘图使用 Microsoft YaHei 中文字体。第三方库版本见 `requirements.txt`。
+Windows 绘图优先使用 Microsoft YaHei。Linux 镜像安装文泉驿正黑。第三方库版本见 `requirements.txt`。
 
 在项目根目录使用 PowerShell。虚拟环境通过 Python 内置的 [venv](https://docs.python.org/3.12/library/venv.html) 创建：
 
@@ -547,7 +579,7 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 | 信息 | 报告内容 |
 | --- | --- |
 | 固定输入 | `suite_name`、`split`、两个输入文件名、数据与题集版本，以及各自的 SHA-256 指纹 |
-| 代码清单 | `code_manifest` 保存 18 个声明文件的逐文件指纹和总指纹，包含核心执行代码、评测与审核脚本、依赖声明；完整清单见 [eval_manifest.py](eval_manifest.py) |
+| 代码清单 | `code_manifest` 保存 19 个声明文件的逐文件指纹和总指纹，包含核心执行代码、`app_paths.py`、评测与审核脚本、依赖声明；完整清单见 [eval_manifest.py](eval_manifest.py) |
 | 环境 | Python、SQLite、操作系统信息，以及当前环境实际安装的包名与版本 |
 | 执行上限 | 显式传入并记录 `max_rounds: 6`、`max_seconds: 30.0`；时间预算仍按前文所述在执行边界检查 |
 | 每题记录 | 本地标准结果、预期状态、函数执行状态、Agent 返回结果、耗时与日志文件名；返回结果保留逐轮模型用量和工具记录 |
@@ -593,10 +625,10 @@ SSE 追踪元数据、异常及断线边界由离线检查覆盖；本次真实�
 
 `eval_cases_v2_test.json` 的 `frozen_source_revision=a1bc477`，`frozen_runtime_files` 保存冻结时 12 个核心文件的文本指纹，涵盖模型请求、提示词、图流程、工具、参数与结束校验、查询存储、预算、用量和会话等模块。
 `check_eval_holdout.py` 检查这些指纹、固定快照与题集绑定、18 条参考只读查询、2 道澄清题的审核条件，以及开发／保留题的区分。
-评测入口 `eval_data.py` 的题集登记属于采集配置，不在这 12 个核心文件中；新增登记会改变报告的代码总指纹，核心文件仍应与冻结清单一致。
+保留集的首次采集和冻结核验对应下方归档的版本。容器化改动更新了工具和会话模块，执行源码冻结检查时请使用首次采集版本 `4a1c784`。
 保留题集指纹前 16 位为 `dfb849382da2e648`。
 
-准备检查不调用模型：
+在首次采集版本 `4a1c784` 可执行以下准备检查，命令无需请求模型：
 
 ```powershell
 .\venv\Scripts\python.exe -X utf8 check_eval_holdout.py

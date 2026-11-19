@@ -14,10 +14,10 @@ from run_trace import RunTrace
 from session_runner import SessionBusyError
 from stream_runner import AgentEventStream
 from trace_logging import log_trace_event
+from app_paths import OUTPUT_DIR
 
 BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = BASE_DIR / "outputs"
-OUTPUT_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="业务数据分析 Agent")
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")

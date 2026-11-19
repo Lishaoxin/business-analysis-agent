@@ -10,6 +10,7 @@ EVAL_SOURCE_FILES = (
     "graph_agent.py",
     "agent_state.py",
     "tools.py",
+    "app_paths.py",
     "tool_models.py",
     "result_models.py",
     "completion_checks.py",

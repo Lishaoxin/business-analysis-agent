@@ -1,0 +1,25 @@
+name: business-analysis-agent
+
+services:
+  agent:
+    build: .
+    image: business-analysis-agent:persistent
+    env_file:
+      - .env
+    environment:
+      AGENT_DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:8003:8001"
+    volumes:
+      - agent-data:/app/data
+    init: true
+    stop_grace_period: 75s
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8001/', timeout=3).close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  agent-data:

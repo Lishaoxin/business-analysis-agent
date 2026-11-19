@@ -150,10 +150,11 @@ def main():
     run_dir.mkdir(parents=True)
     report_path = run_dir / "report.json"
 
-    old_db, old_base = tools.DB_PATH, tools.BASE_DIR
+    old_db, old_base, old_output = tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR
     try:
         tools.DB_PATH = run_dir / "business.db"
         tools.BASE_DIR = run_dir
+        tools.OUTPUT_DIR = run_dir / "outputs"
         conn = sqlite3.connect(tools.DB_PATH)
         try:
             restore_database(conn, inputs["dataset"])
@@ -175,7 +176,7 @@ def main():
         report["finished_at"] = datetime.now(LOCAL_TZ).isoformat()
         save_report(report_path, report)
     finally:
-        tools.DB_PATH, tools.BASE_DIR = old_db, old_base
+        tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR = old_db, old_base, old_output
 
     print("报告：", report_path)
 

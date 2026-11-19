@@ -1,8 +1,7 @@
 import sqlite3
-from pathlib import Path
+from app_paths import DB_PATH
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "business.db"
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 conn = sqlite3.connect(DB_PATH)
 conn.execute("PRAGMA foreign_keys = ON")

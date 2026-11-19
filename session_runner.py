@@ -8,9 +8,8 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from agent_state import create_initial_state
 from graph_agent import build_agent_graph
 from run_budget import TaskBudget
+from app_paths import SESSION_DB_PATH
 
-
-SESSION_DB_PATH = Path(__file__).resolve().parent / "sessions.db"
 _active_sessions = set()
 _active_guard = Lock()
 
@@ -45,6 +44,7 @@ def run_session_agent(
 
     conn = None
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(path), check_same_thread=False, timeout=10)
         serde = JsonPlusSerializer(allowed_msgpack_modules=[])
         checkpointer = SqliteSaver(conn, serde=serde)

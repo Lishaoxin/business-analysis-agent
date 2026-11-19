@@ -34,7 +34,7 @@ def check():
             source = candidates / filename if (candidates / filename).is_file() else project / filename
             (root / filename).write_bytes(source.read_bytes())
 
-        original_db, original_base = tools.DB_PATH, tools.BASE_DIR
+        original_db, original_base, original_output = tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR
         with (
             patch.object(eval_agent, "BASE_DIR", root),
             patch.object(eval_agent, "load_eval_inputs", return_value=inputs),
@@ -44,7 +44,7 @@ def check():
             report = eval_agent.build_report(inputs, inputs["cases"])
             assert report["report_version"] == 2
             assert report["code_manifest"] == build_eval_manifest(root)
-            assert len(report["code_manifest"]["files"]) == 18
+            assert len(report["code_manifest"]["files"]) == 19
             assert report["max_rounds"] == 6 and report["max_seconds"] == 30.0
             assert report["python_version"] and report["sqlite_version"] and report["platform"]
             assert report["package_versions"]
@@ -58,7 +58,7 @@ def check():
                 pass
             else:
                 raise AssertionError("错误预期状态没有在采集前被拒绝")
-            print("报告包含18文件清单、6轮/30秒上限、实际环境与依赖版本，旧字段保留")
+            print("报告包含19文件清单、6轮/30秒上限、实际环境与依赖版本，旧字段保留")
 
             with (
                 patch.object(agent, "run_agent") as run_agent,
@@ -70,6 +70,7 @@ def check():
             assert "评测准备检查通过" in output.getvalue()
             assert not (root / "eval_runs").exists()
             assert tools.DB_PATH == original_db and tools.BASE_DIR == original_base
+            assert tools.OUTPUT_DIR == original_output
             print("check-only验证快照及报告信息，不启动Agent或创建评测目录")
 
             calls = []
@@ -78,11 +79,16 @@ def check():
                 assert kwargs == {"max_rounds": 6, "max_seconds": 30.0}
                 assert tools.DB_PATH.resolve().is_relative_to(root)
                 assert tools.BASE_DIR == tools.DB_PATH.parent
+                assert tools.OUTPUT_DIR == tools.DB_PATH.parent / "outputs"
                 report_path = tools.BASE_DIR / "report.json"
                 initial = json.loads(report_path.read_text(encoding="utf-8"))
                 assert initial["code_manifest"] == report["code_manifest"]
                 with closing(sqlite3.connect(tools.DB_PATH.as_uri() + "?mode=ro", uri=True)) as conn:
                     assert conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 6
+                if not calls:
+                    chart = tools.draw_chart({"columns": ["category", "value"], "rows": [["offline", 1]], "truncated": False}, title="Output isolation")
+                    assert Path(chart["chart_path"]).parent == tools.OUTPUT_DIR
+                    assert Path(chart["chart_path"]).is_file()
                 calls.append((question, kwargs))
                 if len(calls) == 3:
                     raise requests.Timeout("离线预设服务超时")
@@ -113,7 +119,8 @@ def check():
             assert all(row["expected_status"] == "completed" for row in finished["rows"])
             assert all((directories[0] / row["log_file"]).is_file() for row in finished["rows"])
             assert tools.DB_PATH == original_db and tools.BASE_DIR == original_base
-            print("真实采集流程使用独立快照库，只向Agent传问题与明确上限")
+            assert tools.OUTPUT_DIR == original_output
+            print("采集使用独立快照库与图片目录，结束后恢复原路径，只向Agent传问题与上限")
             print("首份及最终报告均保留代码清单，执行状态与业务状态分别记录")
             print("正常返回、业务失败和服务异常均保存日志，未自动判题通过")
 
@@ -131,6 +138,7 @@ def check():
                     raise AssertionError("数据库恢复失败被静默忽略")
             run_agent.assert_not_called()
             assert tools.DB_PATH == original_db and tools.BASE_DIR == original_base
+            assert tools.OUTPUT_DIR == original_output
             assert inputs == untouched
             print("数据库恢复异常仍恢复工具全局路径，原输入快照未被修改")
 

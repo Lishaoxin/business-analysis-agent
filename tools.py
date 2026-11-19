@@ -3,17 +3,16 @@ import math
 import sqlite3
 from pathlib import Path
 from uuid import uuid4
-
+from app_paths import DB_PATH, OUTPUT_DIR
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-plt.rcParams["font.sans-serif"] = ["Microsoft YaHei"]
+plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "WenQuanYi Zen Hei"]
 plt.rcParams["axes.unicode_minus"] = False
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "business.db"
 SQL_TIMEOUT_SECONDS = 2.0
 
 ALLOWED_TABLES = {"orders", "products", "order_items"}
@@ -113,8 +112,8 @@ def draw_chart(result, title="查询结果"):
         labels.append(str(row[0]))
         values.append(row[1])
 
-    output_dir = BASE_DIR / "outputs"
-    output_dir.mkdir(exist_ok=True)
+    output_dir = OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
     chart_path = output_dir / f"chart_{uuid4().hex}.png"
 
     fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")

@@ -21,7 +21,7 @@ def check():
     project = Path(agent.__file__).resolve().parent
     input_names = ("eval_fixture_v1.json", "eval_cases_v1.json", "eval_fixture_v2.json", "eval_cases_v2_dev.json")
     original_inputs = {name: (project / name).read_bytes() for name in input_names}
-    old_db, old_base = tools.DB_PATH, tools.BASE_DIR
+    old_db, old_base, old_output = tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR
 
     with TemporaryDirectory(prefix="agent_eval_suite_check_") as directory:
         root = Path(directory).resolve()
@@ -134,6 +134,7 @@ def check():
                 assert kwargs == {"max_rounds": 6, "max_seconds": 30.0}
                 assert tools.DB_PATH.parent.parent == root / "eval_runs"
                 assert tools.BASE_DIR == tools.DB_PATH.parent
+                assert tools.OUTPUT_DIR == tools.DB_PATH.parent / "outputs"
                 with closing(sqlite3.connect(tools.DB_PATH.as_uri()+"?mode=ro", uri=True)) as conn:
                     assert conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 1000
                 initial = json.loads((tools.BASE_DIR / "report.json").read_text(encoding="utf-8"))
@@ -160,14 +161,14 @@ def check():
                 assert all(row["review"]["passed"] is None for row in finished["rows"])
                 assert finished["suite_name"] == "v2-dev" and finished["split"] == "development"
                 assert finished["code_manifest"] == report["code_manifest"]
-                assert tools.DB_PATH == old_db and tools.BASE_DIR == old_base
+                assert (tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR) == (old_db, old_base, old_output)
             print("预设采集使用独立1000订单数据库，默认首题为D01，全部模式保存20题")
             print("Agent仅收到问题与明确上限，标准答案和参考SQL不传给模型，也未自动判题")
             assert development == untouched
             assert all((root / name).read_bytes() == content for name, content in original_inputs.items())
 
     assert all((project / name).read_bytes() == content for name, content in original_inputs.items())
-    assert tools.DB_PATH == old_db and tools.BASE_DIR == old_base
+    assert (tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR) == (old_db, old_base, old_output)
     print("第一版和第二版输入均保持不变，临时采集结束后工具路径恢复")
     print("评测题集入口检查通过（预设Agent与临时数据库，未请求真实API）")
 

@@ -17,6 +17,8 @@ from time import perf_counter
 BASE_DIR = Path(__file__).resolve().parent
 # 三个只打印的旧诊断脚本不计为自动检查；历史保留题冻结检查单独运行。
 PYTHON_CHECKS = (
+    "check_app_paths.py",
+    "check_container_start.py",
     "check_tool_arguments.py",
     "check_query_id.py",
     "check_draw_query_id.py",
@@ -147,7 +149,7 @@ def main():
         if root.parent != Path(gettempdir()).resolve() or not root.name.startswith("agent_offline_checks_"):
             raise RuntimeError("临时工作目录不符合预期")
         prepare_workspace(root)
-        excluded = {"DEEPSEEK_API_KEY", "PYTHONPATH", "PYTHONOPTIMIZE"}
+        excluded = {"DEEPSEEK_API_KEY", "PYTHONPATH", "PYTHONOPTIMIZE", "AGENT_DATA_DIR"}
         env = {name: os.environ[name] for name in os.environ if name not in excluded}
         env.update({
             "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8",
