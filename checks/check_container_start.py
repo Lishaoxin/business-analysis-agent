@@ -10,12 +10,11 @@ from tempfile import TemporaryDirectory, gettempdir
 from unittest.mock import patch
 
 import container_start as startup
-from eval_data import restore_database
+from eval_data import FIXTURE_DIR, restore_database
 
 
 def main():
-    project = Path(__file__).resolve().parent
-    snapshot = json.loads((project / "eval_fixture_v1.json").read_text(encoding="utf-8"))
+    snapshot = json.loads((FIXTURE_DIR / "eval_fixture_v1.json").read_text(encoding="utf-8"))
     with TemporaryDirectory(prefix="agent_container_start_check_") as directory:
         root = Path(directory).resolve()
         assert root.parent == Path(gettempdir()).resolve()

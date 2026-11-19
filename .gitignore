@@ -6,3 +6,5 @@ business.db-*
 outputs/
 sessions.db
 sessions.db-*
+/HANDOFF.md
+/eval_runs/run_*/

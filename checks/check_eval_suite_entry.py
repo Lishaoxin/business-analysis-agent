@@ -20,7 +20,7 @@ import tools
 def check():
     project = Path(agent.__file__).resolve().parent
     input_names = ("eval_fixture_v1.json", "eval_cases_v1.json", "eval_fixture_v2.json", "eval_cases_v2_dev.json")
-    original_inputs = {name: (project / name).read_bytes() for name in input_names}
+    original_inputs = {name: (eval_data.FIXTURE_DIR / name).read_bytes() for name in input_names}
     old_db, old_base, old_output = tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR
 
     with TemporaryDirectory(prefix="agent_eval_suite_check_") as directory:
@@ -35,7 +35,7 @@ def check():
             (root / name).write_bytes(content)
 
         with (
-            patch.object(eval_data, "BASE_DIR", root),
+            patch.object(eval_data, "FIXTURE_DIR", root),
             patch.object(eval_agent, "BASE_DIR", root),
             patch.object(agent, "load_dotenv", side_effect=AssertionError("不得读取真实.env")),
             patch.object(agent, "request_model", side_effect=AssertionError("不得请求真实模型")),
@@ -167,7 +167,7 @@ def check():
             assert development == untouched
             assert all((root / name).read_bytes() == content for name, content in original_inputs.items())
 
-    assert all((project / name).read_bytes() == content for name, content in original_inputs.items())
+    assert all((eval_data.FIXTURE_DIR / name).read_bytes() == content for name, content in original_inputs.items())
     assert (tools.DB_PATH, tools.BASE_DIR, tools.OUTPUT_DIR) == (old_db, old_base, old_output)
     print("第一版和第二版输入均保持不变，临时采集结束后工具路径恢复")
     print("评测题集入口检查通过（预设Agent与临时数据库，未请求真实API）")

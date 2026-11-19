@@ -14,8 +14,11 @@ import sys
 from tempfile import TemporaryDirectory, gettempdir
 from time import perf_counter
 
+from eval_data import FIXTURE_DIR, restore_database
+
 BASE_DIR = Path(__file__).resolve().parent
-# 三个只打印的旧诊断脚本不计为自动检查；历史保留题冻结检查单独运行。
+CHECK_DIR = BASE_DIR / "checks"
+
 PYTHON_CHECKS = (
     "check_app_paths.py",
     "check_container_start.py",
@@ -46,8 +49,8 @@ PYTHON_CHECKS = (
     "check_eval_suite_entry.py",
 )
 WEB_CHECK = "check_session_page.cjs"
-INPUT_FILES = (
-    "requirements.txt", "requirements-dev.txt", "index.html",
+PROJECT_FILES = ("requirements.txt", "requirements-dev.txt", "index.html")
+FIXTURE_FILES = (
     "eval_fixture_v1.json", "eval_cases_v1.json", "eval_fixture_v2.json",
     "eval_cases_v2_dev.json", "eval_cases_v2_test.json",
 )
@@ -57,14 +60,20 @@ def prepare_workspace(root):
     # 复制代码与固定输入；不复制.env、数据库、会话或已有运行产物。
     for source in BASE_DIR.glob("*.py"):
         shutil.copy2(source, root / source.name)
-    for name in INPUT_FILES:
+    for name in PROJECT_FILES:
         shutil.copy2(BASE_DIR / name, root / name)
-    if (BASE_DIR / WEB_CHECK).is_file():
-        shutil.copy2(BASE_DIR / WEB_CHECK, root / WEB_CHECK)
+    # 检查之间有辅助函数依赖，在临时副本中放到一层，保留原有导入。
+    for source in CHECK_DIR.iterdir():
+        if source.is_file() and source.suffix in {".py", ".cjs"}:
+            shutil.copy2(source, root / source.name)
+
+    fixtures = root / FIXTURE_DIR.relative_to(BASE_DIR)
+    fixtures.mkdir(parents=True)
+    for name in FIXTURE_FILES:
+        shutil.copy2(FIXTURE_DIR / name, fixtures / name)
 
     # 依赖业务表结构的旧检查使用这份临时数据库。
-    from eval_data import restore_database
-    snapshot = json.loads((root / "eval_fixture_v1.json").read_text(encoding="utf-8"))
+    snapshot = json.loads((fixtures / "eval_fixture_v1.json").read_text(encoding="utf-8"))
     with closing(sqlite3.connect(root / "business.db")) as conn:
         restore_database(conn, snapshot["dataset"])
 
@@ -134,8 +143,12 @@ def main():
         print(f"共{len(selected)}项；这是自动回归清单，不包含真实模型评测。")
         return 0
 
-    required = (*INPUT_FILES, *selected)
-    missing = [name for name in required if not (BASE_DIR / name).is_file()]
+    required = [
+        *(BASE_DIR / name for name in PROJECT_FILES),
+        *(FIXTURE_DIR / name for name in FIXTURE_FILES),
+        *(CHECK_DIR / name for name in (*selected, "checkpoint_demo.py")),
+    ]
+    missing = [str(path.relative_to(BASE_DIR)) for path in required if not path.is_file()]
     if missing:
         parser.error("缺少文件：" + ", ".join(missing))
     node = shutil.which("node") if WEB_CHECK in selected else None

@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+FIXTURE_DIR = Path(__file__).resolve().parent / "evaluation" / "fixtures"
 TABLE_ORDER = ("orders", "products", "order_items")
 
 # 题集名对应(数据文件、题目文件、文件版本、用途)。
@@ -27,10 +27,10 @@ def load_eval_inputs(suite_name="v1"):
         raise ValueError("不支持的评测题集")
     dataset_file, cases_file, version, split = EVAL_SUITES[suite_name]
     snapshot = json.loads(
-        (BASE_DIR / dataset_file).read_text(encoding="utf-8")
+        (FIXTURE_DIR / dataset_file).read_text(encoding="utf-8")
     )
     suite = json.loads(
-        (BASE_DIR / cases_file).read_text(encoding="utf-8")
+        (FIXTURE_DIR / cases_file).read_text(encoding="utf-8")
     )
     dataset = snapshot["dataset"]
     if (type(dataset["version"]) is not int or dataset["version"] != version

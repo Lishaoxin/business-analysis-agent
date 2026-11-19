@@ -7,10 +7,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from random import Random
 
-from eval_data import TABLE_ORDER, content_hash, restore_database
+from eval_data import FIXTURE_DIR, TABLE_ORDER, content_hash, restore_database
 
-BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_PATH = BASE_DIR / "eval_fixture_v2.json"
+OUTPUT_PATH = FIXTURE_DIR / "eval_fixture_v2.json"
 SEED = 20261118
 ORDER_COUNT = 1000
 START_DATE = date(2026, 1, 1)
@@ -87,7 +86,7 @@ def build_dataset(template):
 
 def build_snapshot(source_path=None):
     if source_path is None:
-        source_path = BASE_DIR / "eval_fixture_v1.json"
+        source_path = FIXTURE_DIR / "eval_fixture_v1.json"
     original = json.loads(Path(source_path).read_text(encoding="utf-8"))
     if original["dataset"]["version"] != 1:
         raise ValueError("生成模板必须是第一版数据快照")

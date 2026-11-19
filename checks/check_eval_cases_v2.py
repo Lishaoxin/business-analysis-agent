@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from eval_data import BASE_DIR, content_hash, restore_database
+from eval_data import FIXTURE_DIR, content_hash, restore_database
 
 
 def check_suite(snapshot, suite):
@@ -52,8 +52,8 @@ def check_suite(snapshot, suite):
 
 
 def main():
-    snapshot_path = BASE_DIR / "eval_fixture_v2.json"
-    suite_path = BASE_DIR / "eval_cases_v2_dev.json"
+    snapshot_path = FIXTURE_DIR / "eval_fixture_v2.json"
+    suite_path = FIXTURE_DIR / "eval_cases_v2_dev.json"
     before = {path: path.read_bytes() for path in (snapshot_path, suite_path)}
     snapshot = json.loads(before[snapshot_path])
     suite = json.loads(before[suite_path])

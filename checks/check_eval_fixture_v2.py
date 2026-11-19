@@ -11,11 +11,11 @@ from tempfile import TemporaryDirectory, gettempdir
 from unittest.mock import patch
 
 import build_eval_fixture_v2 as builder
-from eval_data import BASE_DIR, content_hash, restore_database
+from eval_data import FIXTURE_DIR, content_hash, restore_database
 
 
 def main():
-    template_path = BASE_DIR / "eval_fixture_v1.json"
+    template_path = FIXTURE_DIR / "eval_fixture_v1.json"
     template_bytes = template_path.read_bytes()
     random_state = random.getstate()
     first = builder.build_snapshot(template_path)
@@ -66,7 +66,7 @@ def main():
         assert root.parent == Path(gettempdir()).resolve()
         assert root.name.startswith("agent_eval_fixture_check_")
         output = root / "eval_fixture_v2.json"
-        with patch.object(builder, "BASE_DIR", BASE_DIR), patch.object(builder, "OUTPUT_PATH", output):
+        with patch.object(builder, "OUTPUT_PATH", output):
             with redirect_stdout(io.StringIO()):
                 builder.main()
             saved_bytes = output.read_bytes()
